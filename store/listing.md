@@ -4,7 +4,7 @@
 **Type:** Watchface
 **Category:** Faces
 **Platform:** Pebble Time 2 (emery)
-**Source:** https://github.com/dwarrenku/sunpath
+**Source:** https://github.com/dwarrenku/pebble_solar_watch_face
 **File to upload:** `dist/sunpath.pbw`
 
 ## Short description
