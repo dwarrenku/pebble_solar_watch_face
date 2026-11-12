@@ -165,3 +165,13 @@ pebble install --emulator emery
 - The plugin API is a Core Devices preview and may change; Sunpath checks every call and falls back.
 - The Open-Meteo path is covered by unit tests against a sample response, not by a live request.
 - Dates and labels are in English.
+
+## Releasing
+
+Releases go to the Pebble appstore from GitHub Actions (`.github/workflows/publish.yml`), with no stored
+credentials. The repository is registered in the Pebble Developer Dashboard under *Publish from GitHub
+Actions*, and the repository variable `PEBBLE_APP_ID` holds the app's appstore id.
+
+To release, raise `"version"` in `package.json` (to one the appstore hasn't seen), commit and push to `main`.
+The workflow builds the watchface and uploads it as a published release. It can also be run by hand from the
+Actions tab.

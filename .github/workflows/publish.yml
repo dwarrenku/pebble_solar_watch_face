@@ -1,0 +1,95 @@
+# Publishes a new release of Sunpath to the Pebble appstore (apps.repebble.com).
+#
+# Runs when package.json's "version" changes on main, or by hand from the Actions tab
+# ("Run workflow"). The appstore trusts this workflow through GitHub's OIDC token, so no
+# credentials are stored; it is registered in the Pebble Developer Dashboard under
+# "Publish from GitHub Actions" as dwarrenku/pebble_solar_watch_face, publish.yml, main.
+#
+# Set the repository variable PEBBLE_APP_ID (Settings > Secrets and variables > Actions >
+# Variables) to the app's id from its dashboard page or apps.repebble.com link.
+#
+# To release: bump "version" in package.json (it must be one the appstore has not seen),
+# commit, and push to main.
+
+name: Publish to the Pebble appstore
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  # Build in a job without id-token, so dependencies can never mint a store token.
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      changed: ${{ steps.version.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Read the version
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          previous=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0)).version" 2>/dev/null || echo none)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$version" != "$previous" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "package.json changed but the version is still $version: nothing to publish."
+          fi
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install the Pebble SDK
+        run: |
+          uv tool install pebble-tool
+          pebble sdk install latest
+
+      - name: Build
+        run: |
+          pebble build
+          cp build/*.pbw sunpath.pbw
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pbw
+          path: sunpath.pbw
+
+  publish:
+    needs: build
+    if: needs.build.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pbw
+
+      - name: Upload the release
+        env:
+          APP_ID: ${{ vars.PEBBLE_APP_ID }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          if [ -z "$APP_ID" ]; then
+            echo "::error::Set the repository variable PEBBLE_APP_ID to the app's id from the Pebble Developer Dashboard."
+            exit 1
+          fi
+          TOKEN=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://appstore-api.repebble.com" | jq -r .value)
+          curl -fsS -H "Authorization: Bearer $TOKEN" \
+            --form-string "version=$VERSION" -F "pbwFile=@sunpath.pbw" --form-string isPublished=true \
+            "https://appstore-api.repebble.com/api/dashboard/apps/$APP_ID/releases"
+          echo "Published Sunpath $VERSION."
