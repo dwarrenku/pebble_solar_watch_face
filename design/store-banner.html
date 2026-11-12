@@ -1,0 +1,37 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" width="720" height="320"></canvas>
+<script>
+const c = document.getElementById('c').getContext('2d');
+const W = 720, H = 320, HZ = 252, sx = 136, sy = HZ - 36, R = 54;
+c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+// Glow, clipped at the horizon.
+c.save(); c.beginPath(); c.rect(0, 0, W, HZ); c.clip();
+const g = c.createRadialGradient(sx, sy, 0, sx, sy, 250);
+[[0, '#fff8d0'], [0.12, '#ffd36e'], [0.3, '#ff8f7a'], [0.52, '#b06ce0'], [0.75, '#3a1f78'], [1, '#000']].forEach(([o, col]) => g.addColorStop(o, col));
+c.fillStyle = g; c.fillRect(0, 0, W, HZ); c.restore();
+// The cartoon sun: 16 facets, dash rays, upright eyes and a V smile; cut by the horizon.
+c.save(); c.beginPath(); c.rect(0, 0, W, HZ); c.clip();
+const ray = '#ff5500', ink = '#000';
+c.lineCap = 'round'; c.lineJoin = 'round';
+for (let k = 0; k < 8; k++) { const a = (-90 + k * 45) * Math.PI / 180; c.beginPath(); c.moveTo(sx + Math.cos(a) * (R + 16), sy + Math.sin(a) * (R + 16)); c.lineTo(sx + Math.cos(a) * (R + 36), sy + Math.sin(a) * (R + 36)); c.lineWidth = 9; c.strokeStyle = ray; c.stroke(); }
+c.beginPath();
+for (let i = 0; i < 16; i++) { const a = (-90 + i * 22.5) * Math.PI / 180, r = i % 2 ? R * 0.87 : R; c[i ? 'lineTo' : 'moveTo'](sx + Math.cos(a) * r, sy + Math.sin(a) * r); }
+c.closePath(); c.fillStyle = '#ffcc33'; c.fill(); c.lineWidth = 10; c.strokeStyle = ray; c.stroke();
+const eye = (x) => { c.beginPath(); c.moveTo(x, sy - 19); c.lineTo(x, sy - 1); c.lineWidth = 8; c.strokeStyle = ink; c.stroke(); };
+eye(sx - 21); eye(sx + 19);
+c.beginPath(); c.moveTo(sx - 23, sy + 17); c.lineTo(sx - 2, sy + 31); c.lineTo(sx + 19, sy + 17); c.lineWidth = 8; c.strokeStyle = ink; c.stroke();
+c.restore();
+// Horizon.
+c.beginPath(); c.moveTo(14, HZ); c.lineTo(W - 14, HZ); c.lineWidth = 7; c.strokeStyle = '#fff'; c.lineCap = 'round'; c.stroke();
+// Name and line.
+c.fillStyle = '#fff'; c.textBaseline = 'alphabetic';
+c.font = '800 46px "DejaVu Sans", "Liberation Sans", Arial, sans-serif'; c.fillText('Sunpath', 22, 64);
+c.font = '600 18px "DejaVu Sans", "Liberation Sans", Arial, sans-serif'; c.fillStyle = '#e8e8f0';
+c.fillText('The sun\u2019s path', 24, 94); c.fillText('through your day', 24, 117);
+c.font = '600 15px "DejaVu Sans", "Liberation Sans", Arial, sans-serif'; c.fillStyle = '#c9c9d6';
+c.fillText('For Pebble Time 2', 24, 296);
+// Two screenshots at 1x, pixel-exact.
+c.imageSmoothingEnabled = false;
+const shot = (src, x, y) => new Promise(res => { const im = new Image(); im.onload = () => { c.fillStyle = '#2b2b33'; c.fillRect(x - 4, y - 4, 208, 236); c.drawImage(im, x, y); res(); }; im.src = src; });
+Promise.all([shot('banner-a.png', 290, 46), shot('banner-b.png', 506, 46)]).then(() => document.body.dataset.ready = 1);
+</script></body></html>
