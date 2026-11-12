@@ -1,0 +1,1115 @@
+<title>Sunpath Watchface</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif&family=Montserrat:wght@300;400;700&family=Roboto+Condensed:wght@400;700&family=Roboto:wght@700&display=swap">
+<style>
+/* Layout: an almanac plate. The watch sits on a plain field like an instrument under glass; controls are a quiet column beside it, reference tables below. */
+:root {
+  --bg: #eceff3;          /* cool paper, biased toward the twilight blue */
+  --panel: #f8f9fb;
+  --fg: #141821;
+  --muted: #5b6474;
+  --rule: #cfd5de;
+  --sun: #a86400;          /* Pebble ChromeYellow, darkened for a light ground */
+  --dusk: #3f3a91;         /* Pebble Indigo family */
+  --bezel: #1b1e24;
+  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --font-ui: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0f15; --panel: #141821; --fg: #e6e9ef; --muted: #98a1b2; --rule: #262c38;
+    --sun: #ffaa00; --dusk: #9d98ff; --bezel: #000000; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c0f15; --panel: #141821; --fg: #e6e9ef; --muted: #98a1b2; --rule: #262c38;
+  --sun: #ffaa00; --dusk: #9d98ff; --bezel: #000000; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); line-height: 1.5; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-block: 32px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(2.4rem, 6vw, 3.6rem); line-height: 1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 10px 0 0; color: var(--muted); max-width: 64ch; }
+.eyebrow { font-family: var(--font-data); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sun); }
+.stage { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 40px; margin-top: 32px; align-items: start; }
+@media (max-width: 800px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.watch { justify-self: center; background: var(--bezel); border-radius: 44px; padding: 34px 30px; box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 40px rgba(0,0,0,.25); }
+.watch canvas { display: block; width: 400px; height: 456px; max-width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; border-radius: 4px; }
+@media (max-width: 480px) { .watch { padding: 22px 18px; border-radius: 32px; } .watch canvas { width: 300px; height: 342px; } }
+.readout { font-family: var(--font-data); font-size: 0.78rem; color: var(--muted); text-align: center; margin-top: 12px; font-variant-numeric: tabular-nums; max-width: 460px; margin-inline: auto; }
+.controls { display: grid; gap: 18px; min-width: 0; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field > label, .field > .lbl { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button { font: 500 0.9rem var(--font-ui); padding: 7px 13px; border-radius: 999px; border: 1px solid var(--rule); background: var(--panel); color: var(--fg); cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 480px) { .slots { grid-template-columns: minmax(0, 1fr); } }
+select, input[type="date"] { font: 0.92rem var(--font-ui); padding: 7px 9px; border-radius: 8px; border: 1px solid var(--rule); background: var(--panel); color: var(--fg); min-width: 0; max-width: 100%; }
+input[type="range"] { width: 100%; accent-color: var(--sun); }
+.scrub-scale { display: flex; justify-content: space-between; font-family: var(--font-data); font-size: 0.72rem; color: var(--muted); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 0.92rem; }
+button.ghost { font: 500 0.85rem var(--font-ui); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; color: var(--fg); cursor: pointer; }
+.note { border-top: 1px solid var(--rule); padding-top: 14px; }
+.note h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; margin: 0 0 4px; }
+.note p { margin: 0 0 8px; max-width: 64ch; }
+.note ul { margin: 0; padding-left: 18px; max-width: 64ch; }
+.note li { margin-bottom: 4px; }
+section.ref { margin-top: 56px; }
+section.ref h2 { font-family: var(--font-display); font-weight: 400; font-size: 2rem; margin: 0 0 6px; }
+section.ref > p { color: var(--muted); max-width: 64ch; margin: 0 0 16px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td code, p code { font-family: var(--font-data); font-size: 0.82rem; }
+.src { display: inline-block; font-family: var(--font-data); font-size: 0.72rem; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.src.watch { color: var(--sun); } .src.plugin { color: var(--dusk); } .src.web { color: var(--muted); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 20px; }
+.gallery figure { margin: 0; display: grid; gap: 8px; align-content: start; }
+.gallery img.screen { width: 100%; max-width: 300px; height: auto; aspect-ratio: 200 / 228; image-rendering: pixelated; image-rendering: crisp-edges; border-radius: 6px; background: #000; display: block; }
+.gallery figcaption { font-size: 0.86rem; color: var(--muted); max-width: 32ch; }
+.gallery figcaption b { color: var(--fg); font-weight: 600; display: block; }
+.offshot { margin: 28px 0 0; display: grid; gap: 10px; }
+.offshot img { width: 100%; height: auto; border-radius: 10px; display: block; }
+.offshot figcaption { font-size: 0.9rem; color: var(--muted); max-width: 70ch; }
+.offshot figcaption b { color: var(--fg); font-weight: 600; display: block; }
+.settings-shot { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 28px; align-items: start; margin-top: 28px; }
+@media (max-width: 640px) { .settings-shot { grid-template-columns: minmax(0, 1fr); } }
+.settings-shot img { width: 100%; max-width: 300px; height: auto; border-radius: 12px; border: 1px solid var(--rule); display: block; }
+.settings-shot p { margin: 0 0 10px; max-width: 60ch; }
+.settings-shot h2 { margin-top: 0; }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.sw { display: grid; gap: 4px; font-family: var(--font-data); font-size: 0.72rem; color: var(--muted); width: 104px; }
+.sw i { display: block; height: 34px; border-radius: 6px; border: 1px solid var(--rule); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Pebble Time 2 · emery · 200 × 228 · 64 colours</div>
+    <h1>Sunpath</h1>
+    <p>A solar-graph watchface: the sun's real elevation for your place and date, drawn across the day, with the weather and three complications you choose. Every pixel is rendered at the watch's resolution and snapped to its 64-colour palette.</p>
+  </header>
+
+  <section class="stage">
+    <div>
+      <div class="watch"><canvas id="screen" width="200" height="228" aria-label="Simulated watch screen"></canvas></div>
+      <div class="readout" id="readout"></div>
+    </div>
+
+    <div class="controls">
+      <div class="field">
+        <span class="lbl">Design</span>
+        <div class="tabs" id="dirTabs" role="group" aria-label="Design">
+          <button type="button" data-dir="F" aria-pressed="true">Sunpath</button>
+          <button type="button" data-dir="B" aria-pressed="false">Explored: live-sky layout</button>
+          <button type="button" data-dir="C" aria-pressed="false">Explored: solar dial</button>
+          <button type="button" data-dir="PL" aria-pressed="false">Timeline: light</button>
+          <button type="button" data-dir="PD" aria-pressed="false">Timeline: dark</button>
+          <button type="button" data-dir="PG" aria-pressed="false">Glow + character</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="scrub">Time of day</label>
+        <input type="range" id="scrub" min="0" max="1439" step="1" value="450">
+        <div class="scrub-scale"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+        <div class="row"><button type="button" class="ghost" id="nowBtn">Jump to now</button><label class="check"><input type="checkbox" id="play"> Play the day</label></div>
+      </div>
+
+      <div class="row">
+        <div class="field"><label for="place">Place</label><select id="place"></select></div>
+        <div class="field"><label for="date">Date</label><input type="date" id="date"></div>
+        <div class="field"><label for="wx">Weather</label>
+          <select id="wx">
+            <option value="sun">Clear</option><option value="partly_cloudy">Partly cloudy</option><option value="cloudy">Cloudy</option>
+            <option value="light_rain" selected>Light rain</option><option value="heavy_rain">Heavy rain</option>
+            <option value="light_snow">Light snow</option><option value="heavy_snow">Heavy snow</option><option value="none">No data yet</option>
+          </select></div>
+      </div>
+
+      <div class="field" id="themeField">
+        <span class="lbl">Theme</span>
+        <div class="tabs" id="themeTabs" role="group" aria-label="Theme">
+          <button type="button" data-theme-opt="glow" aria-pressed="true">Solar glow</button>
+          <button type="button" data-theme-opt="classic" aria-pressed="false">Classic</button>
+        </div>
+      </div>
+
+      <div class="field" id="styleField">
+        <span class="lbl">Glow style</span>
+        <div class="tabs" id="styleTabs" role="group" aria-label="Glow style">
+          <button type="button" data-style="soft" aria-pressed="true">Soft (current)</button>
+          <button type="button" data-style="bands" aria-pressed="false">Bands</button>
+          <button type="button" data-style="rays" aria-pressed="false">Sunburst</button>
+          <button type="button" data-style="ripples" aria-pressed="false">Ripples</button>
+          <button type="button" data-style="pixel" aria-pressed="false">Pixel</button>
+          <button type="button" data-style="scan" aria-pressed="false">Scanlines</button>
+        </div>
+      </div>
+
+      <div class="field" id="slotField">
+        <span class="lbl">Complications</span>
+        <div class="slots">
+          <select id="slot0" aria-label="Left complication"></select>
+          <select id="slot1" aria-label="Middle complication"></select>
+          <select id="slot2" aria-label="Right complication"></select>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="tabs" id="animField" hidden><button type="button" id="playAnim">Play the wake-up</button></span>
+        <label class="check"><input type="checkbox" id="moonOn" checked> Moon</label>
+        <label class="check"><input type="checkbox" id="flick"> Wrist flick (sun details)</label>
+        <label class="check"><input type="checkbox" id="qv"> Timeline Quick View</label>
+        <label class="check"><input type="checkbox" id="panel" checked> Panel colours</label>
+        <label class="check"><input type="checkbox" id="dim"> Backlight off (approx.)</label>
+        <label class="check"><input type="checkbox" id="h24"> 24-hour</label>
+        <label class="check"><input type="checkbox" id="grid"> Layout grid</label>
+      </div>
+
+      <div class="note" id="dirNote"></div>
+    </div>
+  </section>
+
+  <section class="ref" id="glow-styles">
+    <h2>Glow styles</h2>
+    <p>Pebble's design guidelines ask for colours that are "small in number", high contrast that reads "in a wide variety of lighting conditions", and animation that adds "character and flourish". Pebble Time's own look was flat, saturated colour with crisp shapes. These five styles bring that to the glow; the soft gradient stays as an option. Each uses the same short run of palette colours for each stretch of the day (yellow, orange and pink at sunrise; yellow, cyan and blue by day; pink and purple at dusk), and over a flat glow the header text gets a 1 px black outline. Try them above with the Glow style switch, or on the watch under Settings, Glow style.</p>
+    <figure class="offshot">
+      <img src="shots/styles-grid.png" alt="Six glow styles on the emulator at sunrise, mid-morning, dusk and under a full moon" width="1840" height="2878" loading="lazy">
+      <figcaption><b>On the emulator</b>Rows: Soft, Bands, Sunburst, Ripples, Pixel, Scanlines. Columns: 7:20 sunrise, 10:40, 4:40 dusk, and the full moon at 10:30 pm.</figcaption>
+    </figure>
+    <figure class="offshot">
+      <img src="shots/styles-off.png" alt="The six glow styles at 10:40 as they would look with the backlight off" width="3768" height="766" loading="lazy">
+      <figcaption><b>With the backlight off</b>The flat styles keep their shape; Soft and Scanlines turn to haze. Preview calibrated from a wrist photo.</figcaption>
+    </figure>
+    <div class="tablewrap" style="margin-top:20px"><table>
+      <thead><tr><th>Style</th><th>What it is</th><th>Backlight off</th></tr></thead>
+      <tbody>
+        <tr><td>Soft</td><td>The current smooth, dithered bloom, closest to the Apple face.</td><td>Hazy</td></tr>
+        <tr><td>Bands</td><td>Four or five flat concentric rings, like a retro sunset poster. The most direct translation into Pebble's flat-colour language.</td><td>Crisp</td></tr>
+        <tr><td>Sunburst</td><td>Alternating flat rays around a bright core. It turns one degree a minute, so the face moves a little every time you look.</td><td>Crisp</td></tr>
+        <tr><td>Ripples</td><td>Thick coloured rings with black between, like Pebble's line icons. The most minimal.</td><td>Crisp</td></tr>
+        <tr><td>Pixel</td><td>The glow in 4 &times; 4 blocks with checkerboard edges, a nod to the original Pebble's dithering.</td><td>Good</td></tr>
+        <tr><td>Scanlines</td><td>Horizontal stripes that thin toward the edge, a retro striped sun.</td><td>Thin stripes fade</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin-top:16px"><strong>Recommendation:</strong> Bands as the everyday look. It is the closest to Pebble's design language and the clearest with the backlight off. Sunburst if you want more personality.</p>
+  </section>
+
+  <section class="ref">
+    <h2>On the watch</h2>
+    <p>Real screenshots from the Pebble SDK's emery emulator running the built face in London, through 11 November and on moonlit nights later in the month, with the weather served by the Pebble app's weather plugin. The emulator shows colours as the Time 2 panel does.</p>
+    <div class="gallery">
+      <figure><img class="screen" src="shots/emu-0715.png" alt="Sunpath on the emulator: Sunrise, 7:15" width="200" height="228" loading="lazy"><figcaption><b>Sunrise, 7:15</b>Pink and orange flattened along the horizon as the sun comes up.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-1040.png" alt="Sunpath on the emulator: Morning, 10:40" width="200" height="228" loading="lazy"><figcaption><b>Morning, 10:40</b>A white sun in a bloom of yellow, mint, sky blue and violet.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-1600.png" alt="Sunpath on the emulator: Low sun, 4:00" width="200" height="228" loading="lazy"><figcaption><b>Low sun, 4:00</b>The glow warms and flattens toward sunset; Daylight left and Hi / lo in the slots.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-1635.png" alt="Sunpath on the emulator: Civil twilight, 4:35" width="200" height="228" loading="lazy"><figcaption><b>Civil twilight, 4:35</b>The sun has set: an eclipse ring under a pink and violet afterglow.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-moonrise.png" alt="Sunpath on the emulator: Full moon rising" width="200" height="228" loading="lazy"><figcaption><b>Full moon rising</b>On 24 November the full moon comes up as the sun goes down, inside the dusk glow.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-fullmoon.png" alt="Sunpath on the emulator: Full moon, 10:30 pm" width="200" height="228" loading="lazy"><figcaption><b>Full moon, 10:30 pm</b>A soft silver glow around the moon; its path while up is the dotted line.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-quarter.png" alt="Sunpath on the emulator: First quarter" width="200" height="228" loading="lazy"><figcaption><b>First quarter</b>The moon is drawn with its real phase: half lit, on the sun's side.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-classic.png" alt="Sunpath on the emulator: Classic theme" width="200" height="228" loading="lazy"><figcaption><b>Classic theme</b>The alternative: the path in amber by day, solid behind the sun and dotted ahead.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-flick.png" alt="Sunpath on the emulator: Wrist flick" width="200" height="228" loading="lazy"><figcaption><b>Wrist flick</b>Five seconds of sun details over the graph.</figcaption></figure>
+      <figure><img class="screen" src="shots/emu-plugins.png" alt="Sunpath on the emulator: Plugin complications" width="200" height="228" loading="lazy"><figcaption><b>Plugin complications</b>Phone battery and the next calendar event, read from Pebble app plugins after saving the settings page.</figcaption></figure>
+    </div>
+    <figure class="offshot">
+      <img src="shots/backlight-off.png" alt="Three watch faces as they look with the backlight off: the earlier thin version, then the bolder one by day and at night" width="1880" height="724" loading="lazy">
+      <figcaption><b>With the backlight off</b>The Time 2's reflective screen shows bright, heavy marks well and lets thin or dark ones sink into the black. Left: the earlier build, which was photographed on a wrist. Middle and right: the current build, with a bold time and labels, 2 px lines, a larger sun and moon, and lighter glow colours. These are emulator previews calibrated against that photo, not photographs.</figcaption>
+    </figure>
+    <div class="settings-shot">
+      <img src="shots/settings-page.png" alt="The Sunpath settings page in the Pebble app" width="390" height="1461" loading="lazy">
+      <div>
+        <h2>Settings</h2>
+        <p>The settings page opens from the gear next to Sunpath in the Pebble app. Each choice is named by what appears on the watch.</p>
+        <p>Weather defaults to Automatic. When the Plugins preview is on, that means the Pebble app's own weather plugin, so the face needs no API key and follows the places and units you set in the Pebble app. Otherwise it falls back to Open-Meteo.</p>
+        <p>The coordinate fields appear only if you choose to type in a place.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="ref">
+    <h2>Complications</h2>
+    <p>Three slots along the bottom, each set from the settings page. Watch readings work with no phone at all; weather readings come from the Pebble app's weather plugin, or from Open-Meteo when plugins are off; plugin readings need the Plugins preview turned on in the Pebble app.</p>
+    <div class="tablewrap"><table id="compTable"><thead><tr><th>Option</th><th>Shows</th><th>Example</th><th>From</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="ref">
+    <h2>Palette</h2>
+    <p>Every colour is one of the panel's 64 (two bits per channel); names are the SDK's <code>GColor</code> constants. Each swatch shows the nominal value on the left and, on the right, how the Time 2's reflective panel shows it, from the SDK's own screenshot correction. That muting is why the warm colours read as cream, peach and coral on the watch.</p>
+    <div class="swatches" id="swatches"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const W = 200, H = 228, RAD = Math.PI / 180;
+
+// ---- Pebble 64-colour palette ---------------------------------------------------------
+const C = {
+  black: [0,0,0], white: [255,255,255], lightGray: [170,170,170], darkGray: [85,85,85],
+  yellow: [255,255,0], chromeYellow: [255,170,0], orange: [255,85,0], rajah: [255,170,85],
+  pastelYellow: [255,255,170], oxfordBlue: [0,0,85], dukeBlue: [0,0,170], cobaltBlue: [0,85,170],
+  vividCerulean: [0,170,255], pictonBlue: [85,170,255], celeste: [170,255,255], liberty: [85,85,170],
+  indigo: [85,0,170], jazzberryJam: [170,0,85], lavenderIndigo: [170,85,255], imperialPurple: [85,0,85],
+};
+const SWATCH_USE = {
+  black: 'Ground, header', white: 'Time, values', lightGray: 'Labels, night sun', darkGray: 'Horizon rule',
+  chromeYellow: 'Date, sun path by day', yellow: 'Sun at height', orange: 'Sun near horizon', pastelYellow: 'Path ahead, by day',
+  liberty: 'Path by night', rajah: 'Twilight sun, golden sky', pictonBlue: 'Day sky, rain', vividCerulean: 'High day sky',
+  celeste: 'Sky at horizon', cobaltBlue: 'Morning sky', dukeBlue: 'Late twilight', oxfordBlue: 'Night sky', indigo: 'Civil twilight',
+  lavenderIndigo: 'Sunrise band', jazzberryJam: 'Dusk horizon',
+};
+const css = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+// How each of the 64 colours looks on the Pebble Time 2 panel: the SDK's own screenshot correction
+// for emery, indexed by (r, g, b) levels 0..3. The panel is reflective, so saturated colours mute.
+const PANEL = [0,0,0,0,30,65,0,67,135,0,104,202,43,74,44,39,81,79,22,99,141,0,125,206,94,152,96,92,155,114,87,165,162,76,180,219,142,227,145,142,230,158,138,235,192,132,245,241,74,22,27,72,39,72,64,72,138,47,107,204,86,78,54,84,84,84,79,103,144,65,128,208,117,154,100,117,157,118,113,166,164,105,181,221,158,229,148,157,231,160,155,236,194,149,246,242,153,53,63,152,62,90,149,86,148,143,116,210,157,91,77,157,96,100,154,112,153,149,135,213,175,160,114,174,163,130,171,171,171,167,186,226,201,232,157,201,234,167,199,240,200,195,249,247,227,84,98,226,88,116,225,106,163,222,131,220,230,110,107,230,114,124,227,127,167,225,148,223,241,170,134,241,173,147,239,181,184,236,195,235,255,238,171,255,241,181,255,246,211,255,255,255];
+const panel = (c) => { const i = ((c[0] / 85) * 16 + (c[1] / 85) * 4 + (c[2] / 85)) * 3; return [PANEL[i], PANEL[i + 1], PANEL[i + 2]]; };
+const BAYER = [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(v => (v + 0.5) / 16);
+const q = (v) => Math.round(v / 85) * 85;
+const qd = (v, t) => Math.min(255, Math.floor(v / 85 + t) * 85);
+
+// ---- Solar model: the Astronomical Almanac's low-precision solar coordinates, as src/c/solar.c ----
+function solarAt(ms) { // the sun at a moment (Unix ms): declination (rad) and equation of time (min)
+  const n = (ms / 1000 - 946728000) / 86400;
+  const L = (280.460 + 0.9856474 * n) % 360, g = ((357.528 + 0.9856003 * n) % 360) * RAD;
+  const lam = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD, eps = (23.439 - 4e-7 * n) * RAD;
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam)) / RAD;
+  const d = ((L - ra + 180) % 360 + 360) % 360 - 180;
+  return { eq: 4 * d, dec: Math.asin(Math.sin(eps) * Math.sin(lam)) };
+}
+function altitude(min, p, sd) {
+  const ha = ((min + sd.eq + 4 * p.lon - p.tz) / 4 - 180) * RAD, lat = p.lat * RAD;
+  const s = Math.sin(lat) * Math.sin(sd.dec) + Math.cos(lat) * Math.cos(sd.dec) * Math.cos(ha);
+  return Math.asin(Math.max(-1, Math.min(1, s))) / RAD;
+}
+// Minutes after local midnight (midnightMs) when the sun's centre reaches `zenith`, or null if it never does.
+function crossing(zenith, rising, p, midnightMs) {
+  const once = (sd) => {
+    const lat = p.lat * RAD;
+    const c = Math.cos(zenith * RAD) / (Math.cos(lat) * Math.cos(sd.dec)) - Math.tan(lat) * Math.tan(sd.dec);
+    if (c > 1 || c < -1) return null;
+    const ha = Math.acos(c) / RAD;
+    return 720 - 4 * (p.lon + (rising ? ha : -ha)) - sd.eq + p.tz;
+  };
+  const t = once(solarAt(midnightMs + 432e5));
+  return t == null ? null : once(solarAt(midnightMs + t * 6e4));
+}
+// The moon, as src/c/moon.c: mean elements plus the largest perturbations (Schlyter).
+function moonAt(ms, lat, lon) {
+  const d = (ms / 1000 - 946728000) / 86400, sd = (x) => Math.sin(x * RAD);
+  const L = 218.316 + 13.176396 * d, M = 134.963 + 13.064993 * d, F = 93.272 + 13.229350 * d;
+  const D = 297.850 + 12.190749 * d, Ms = 357.529 + 0.98560028 * d;
+  const lam = L + 6.289 * sd(M) + 0.214 * sd(2 * M) - 1.274 * sd(M - 2 * D) + 0.658 * sd(2 * D) - 0.186 * sd(Ms)
+    - 0.059 * sd(2 * M - 2 * D) - 0.057 * sd(M - 2 * D + Ms) + 0.053 * sd(M + 2 * D) + 0.046 * sd(2 * D - Ms)
+    + 0.041 * sd(M - Ms) - 0.035 * sd(D) - 0.031 * sd(M + Ms) - 0.015 * sd(2 * F - 2 * D) + 0.011 * sd(M - 4 * D);
+  const bet = 5.128 * sd(F) - 0.173 * sd(F - 2 * D) - 0.055 * sd(M - F - 2 * D) - 0.046 * sd(M + F - 2 * D)
+    + 0.033 * sd(F + 2 * D) + 0.017 * sd(2 * M + F);
+  const eps = (23.439 - 4e-7 * d) * RAD, lr = lam * RAD, br = bet * RAD;
+  const ra = Math.atan2(Math.sin(lr) * Math.cos(eps) - Math.tan(br) * Math.sin(eps), Math.cos(lr));
+  const dec = Math.asin(Math.sin(br) * Math.cos(eps) + Math.cos(br) * Math.sin(eps) * Math.sin(lr));
+  const ha = ((280.46061837 + 360.98564736629 * d) % 360 + lon) * RAD - ra, phi = lat * RAD;
+  const alt = Math.asin(Math.max(-1, Math.min(1, Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(ha)))) / RAD;
+  const par = 0.9508 + 0.0518 * Math.cos(M * RAD);
+  const g = Ms * RAD, sunLam = 280.460 + 0.9856474 * d + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g);
+  const delta = (lam - sunLam) * RAD;
+  return { alt: alt - par * Math.cos(alt * RAD), lit: (1 - Math.cos(br) * Math.cos(delta)) / 2, waxing: Math.sin(delta) > 0 };
+}
+function moon(y, m, d) { // illuminated fraction and phase name, from the mean synodic month
+  const days = (Date.UTC(y, m - 1, d, 12) - Date.UTC(2000, 0, 6, 18, 14)) / 864e5;
+  const age = ((days % 29.530588853) + 29.530588853) % 29.530588853;
+  const illum = (1 - Math.cos(2 * Math.PI * age / 29.530588853)) / 2;
+  const name = age < 1.5 || age > 28 ? 'NEW' : Math.abs(age - 14.77) < 1.5 ? 'FULL' : age < 14.77 ? 'WAXING' : 'WANING';
+  return { pct: Math.round(illum * 100), name };
+}
+
+// ---- Example data --------------------------------------------------------------------
+const PLACES = [
+  { id: 'sea', name: 'Seattle', lat: 47.61, lon: -122.33, tz: -480, temp: 51, hi: 54, lo: 45, feels: 47, rain: 60, hum: 87, wind: '9 SW', uv: 1 },
+  { id: 'nyc', name: 'New York', lat: 40.71, lon: -74.01, tz: -300, temp: 58, hi: 61, lo: 49, feels: 56, rain: 10, hum: 62, wind: '7 W', uv: 3 },
+  { id: 'qui', name: 'Quito (equator)', lat: -0.18, lon: -78.47, tz: -300, temp: 17, hi: 20, lo: 10, feels: 17, rain: 40, hum: 70, wind: '6 E', uv: 11 },
+  { id: 'syd', name: 'Sydney (summer)', lat: -33.87, lon: 151.21, tz: 660, temp: 24, hi: 27, lo: 19, feels: 25, rain: 20, hum: 66, wind: '14 NE', uv: 10 },
+  { id: 'rey', name: 'Reykjavík', lat: 64.15, lon: -21.94, tz: 0, temp: 3, hi: 4, lo: -1, feels: -2, rain: 70, hum: 81, wind: '22 N', uv: 0 },
+  { id: 'tro', name: 'Tromsø (polar night)', lat: 69.65, lon: 18.96, tz: 60, temp: -4, hi: -2, lo: -7, feels: -9, rain: 30, hum: 78, wind: '11 S', uv: 0, date: '2026-12-10' },
+  { id: 'tro-s', name: 'Tromsø (midnight sun)', lat: 69.65, lon: 18.96, tz: 120, temp: 14, hi: 16, lo: 9, feels: 14, rain: 10, hum: 60, wind: '8 N', uv: 3, date: '2026-06-21' },
+];
+const COND_LABEL = { sun: 'Clear', partly_cloudy: 'Partly cloudy', cloudy: 'Cloudy', light_rain: 'Light rain', heavy_rain: 'Rain', light_snow: 'Snow', heavy_snow: 'Heavy snow', none: '' };
+
+// Complication catalogue: id, option name, what it shows, source, and how to compute an example.
+const COMPS = [
+  { id: 'none', name: 'Empty', shows: 'Nothing', src: 'watch' },
+  { id: 'next_sun', name: 'Next sunrise / sunset', shows: 'The next sunrise or sunset, tomorrow\'s once today\'s has passed', src: 'watch' },
+  { id: 'daylight', name: 'Daylight left', shows: 'Daylight remaining; the day\'s length while the sun is down', src: 'watch' },
+  { id: 'golden', name: 'Golden hour', shows: 'When the sun next crosses 6°, the edge of golden hour', src: 'watch' },
+  { id: 'sun_alt', name: 'Sun elevation', shows: 'The sun\'s height above the horizon right now', src: 'watch' },
+  { id: 'moon', name: 'Moon', shows: 'Illuminated fraction and phase', src: 'watch' },
+  { id: 'battery', name: 'Watch battery', shows: 'Charge, in 10% steps as the watch reports it', src: 'watch' },
+  { id: 'steps', name: 'Steps', shows: 'Steps today, from Pebble Health', src: 'watch' },
+  { id: 'distance', name: 'Distance', shows: 'Distance walked today', src: 'watch' },
+  { id: 'heart', name: 'Heart rate', shows: 'Latest heart rate', src: 'watch' },
+  { id: 'wx_hilo', name: 'High / low', shows: 'Today\'s high and low', src: 'weather' },
+  { id: 'wx_precip', name: 'Chance of rain', shows: 'Precipitation chance today', src: 'weather' },
+  { id: 'wx_feels', name: 'Feels like', shows: 'Apparent temperature', src: 'weather' },
+  { id: 'wx_humidity', name: 'Humidity', shows: 'Relative humidity', src: 'weather' },
+  { id: 'wx_wind', name: 'Wind', shows: 'Wind speed and the direction it blows from', src: 'weather' },
+  { id: 'wx_uv', name: 'UV index', shows: 'UV index now', src: 'weather' },
+  { id: 'phone_battery', name: 'Phone battery', shows: 'Phone charge (iOS reports it in 5% steps)', src: 'plugin', plugin: 'phone/phone_state' },
+  { id: 'next_event', name: 'Next event', shows: 'Start time of your next calendar event, titled underneath', src: 'plugin', plugin: 'calendar/event' },
+  { id: 'pebble_1', name: 'Pebble app pick 1', shows: 'Your first reading under Settings → Plugins → Complications in the Pebble app', src: 'plugin', plugin: 'preferences/complications' },
+  { id: 'pebble_2', name: 'Pebble app pick 2', shows: 'Your second reading there', src: 'plugin', plugin: 'preferences/complications' },
+  { id: 'pebble_3', name: 'Pebble app pick 3', shows: 'Your third reading there', src: 'plugin', plugin: 'preferences/complications' },
+];
+
+// ---- State ---------------------------------------------------------------------------
+const st = { style: 'soft', moon: true, panel: true, dir: 'F', theme: 'glow', min: 450, place: PLACES[0], date: '2026-11-11', wx: 'light_rain', h24: false, grid: false, flick: false, qv: false,
+  slots: ['next_sun', 'battery', 'steps'] };
+const $ = (id) => document.getElementById(id);
+const screen = $('screen'), sctx = screen.getContext('2d');
+const off = document.createElement('canvas'); off.width = W; off.height = H;
+const ctx = off.getContext('2d');
+
+function fmtTime(min, h24) {
+  min = ((Math.round(min) % 1440) + 1440) % 1440;
+  let h = Math.floor(min / 60); const m = min % 60;
+  if (!h24) { h = h % 12; if (h === 0) h = 12; }
+  return (h24 ? String(h).padStart(2, '0') : String(h)) + ':' + String(m).padStart(2, '0');
+}
+const dur = (m) => { m = Math.max(0, Math.round(m)); return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
+
+function dayFacts() {
+  const [y, mo, d] = st.date.split('-').map(Number);
+  const p = st.place, mid = Date.UTC(y, mo - 1, d) - p.tz * 6e4, DAY = 864e5;
+  const sd = solarAt(mid + 432e5);
+  const rise = crossing(90.833, true, p, mid), set = crossing(90.833, false, p, mid);
+  const riseY = crossing(90.833, true, p, mid - DAY), setY = crossing(90.833, false, p, mid - DAY);
+  const noon = 720 - 4 * p.lon - sd.eq + p.tz;
+  const alts = new Float32Array(W);
+  for (let x = 0; x < W; x++) alts[x] = altitude((x + 0.5) * 1440 / W, p, sd);
+  return {
+    sd, rise, set, noon, alts, y, mo, d, dow: new Date(Date.UTC(y, mo - 1, d)).getUTCDay(),
+    altNow: altitude(st.min, p, solarAt(mid + st.min * 6e4)), noonAlt: altitude(noon, p, sd),
+    dawn: crossing(96, true, p, mid), dusk: crossing(96, false, p, mid),
+    goldAm: crossing(84, true, p, mid), goldPm: crossing(84, false, p, mid),
+    riseTomorrow: crossing(90.833, true, p, mid + DAY),
+    dayLen: rise != null ? set - rise : null, dayLenY: riseY != null ? setY - riseY : null,
+    moon: moon(y, mo, d),
+    moonAlts: Array.from({ length: W }, (_, x) => moonAt(mid + (x + 0.5) * 1440 / W * 6e4, p.lat, p.lon).alt),
+    moonNow: moonAt(mid + st.min * 6e4, p.lat, p.lon),
+  };
+}
+
+// ---- Primitives ----------------------------------------------------------------------
+const F = { // stand-ins for Pebble system fonts (named in the spec)
+  time: '700 42px Montserrat',            // FONT_KEY_BITHAM_42_BOLD
+  timeBold: '700 50px Roboto',            // FONT_KEY_ROBOTO_BOLD_SUBSET_49
+  g14: '400 13px "Roboto Condensed"', g14b: '700 13px "Roboto Condensed"',
+  g18: '400 17px "Roboto Condensed"', g18b: '700 17px "Roboto Condensed"',
+  g24b: '700 22px "Roboto Condensed"', g28b: '700 27px "Roboto Condensed"',
+};
+let OUTLINE = false; // set while drawing the header over a flat glow
+function text(str, x, y, font, color, align = 'left', base = 'top') {
+  if (OUTLINE) {
+    ctx.font = font; ctx.textAlign = align; ctx.textBaseline = base; ctx.fillStyle = 'rgb(0,0,0)';
+    for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) ctx.fillText(str, x + dx, y + dy);
+  } ctx.font = font; ctx.fillStyle = css(color); ctx.textAlign = align; ctx.textBaseline = base; ctx.fillText(str, x, y); }
+function measure(str, font) { ctx.font = font; return ctx.measureText(str).width; }
+function disc(x, y, r, c) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = css(c); ctx.fill(); }
+function ring(x, y, r, w, c) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.lineWidth = w; ctx.strokeStyle = css(c); ctx.stroke(); }
+function line(x0, y0, x1, y1, w, c) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineWidth = w; ctx.strokeStyle = css(c); ctx.lineCap = 'round'; ctx.stroke(); }
+function rect(x, y, w, h, c) { ctx.fillStyle = css(c); ctx.fillRect(x, y, w, h); }
+function cloud(x, y, w, c) {
+  const r = w / 4; ctx.fillStyle = css(c); ctx.beginPath();
+  ctx.arc(x + r, y + r * 1.3, r, 0, Math.PI * 2); ctx.arc(x + w * 0.45, y + r * 0.8, r * 1.25, 0, Math.PI * 2);
+  ctx.arc(x + w - r, y + r * 1.3, r * 0.95, 0, Math.PI * 2); ctx.rect(x + r, y + r * 1.3, w - 2 * r, r * 0.95); ctx.fill();
+}
+function wxIcon(code, x, y, s, isDay) {
+  const sunC = isDay ? C.chromeYellow : C.lightGray;
+  const drawSun = (cx, cy, r) => {
+    if (isDay) { for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; line(cx + Math.cos(a) * (r + 2), cy + Math.sin(a) * (r + 2), cx + Math.cos(a) * (r + 4), cy + Math.sin(a) * (r + 4), 1.6, sunC); } disc(cx, cy, r, sunC); }
+    else { disc(cx, cy, r + 1, sunC); disc(cx + r * 0.7, cy - r * 0.5, r, C.black); }
+  };
+  if (code === 'sun') { drawSun(x + s / 2, y + s / 2, s * 0.22); return; }
+  if (code === 'partly_cloudy') { drawSun(x + s * 0.36, y + s * 0.34, s * 0.17); cloud(x + s * 0.2, y + s * 0.38, s * 0.78, C.white); return; }
+  cloud(x + s * 0.06, y + s * 0.14, s * 0.88, code === 'heavy_rain' ? C.lightGray : C.white);
+  if (code.includes('rain')) { const n = code === 'heavy_rain' ? 4 : 3; for (let i = 0; i < n; i++) line(x + s * (0.25 + i * 0.17), y + s * 0.72, x + s * (0.2 + i * 0.17), y + s * 0.92, 1.6, C.pictonBlue); }
+  if (code.includes('snow')) { const n = code === 'heavy_snow' ? 4 : 3; for (let i = 0; i < n; i++) disc(x + s * (0.25 + i * 0.17), y + s * (0.78 + (i % 2) * 0.1), 1.4, C.white); }
+}
+function sunGlyph(x, y, alt, ground) {
+  if (alt >= 0) {
+    ring(x, y, 9.5, 1.5, alt > 12 ? C.chromeYellow : C.orange);
+    disc(x, y, 6.5, alt > 12 ? C.yellow : alt > 4 ? C.chromeYellow : C.orange);
+  } else { disc(x, y, 6.5, ground); ring(x, y, 5.5, 2, alt > -6 ? C.rajah : C.lightGray); }
+}
+function sunPath(alts, nowX, yOf, col, dot) {
+  let prev = null;
+  for (let x = 0; x < W; x++) {
+    const y = yOf(alts[x]), up = alts[x] >= 0;
+    if (x <= nowX) { if (prev !== null) line(x - 1, prev, x, y, 2, up ? col.pastDay : col.pastNight); }
+    else if (x % 4 === 0) disc(x, y, dot, up ? col.futureDay : col.futureNight);
+    prev = y;
+  }
+}
+function lerpStops(alt) { // sky gradient stops, interpolated continuously by sun altitude
+  const keys = [
+    [-18, [[0, C.black], [0.6, C.black], [1, C.oxfordBlue]]],
+    [-9, [[0, C.black], [0.6, C.oxfordBlue], [1, C.indigo]]],
+    [-3, [[0, C.oxfordBlue], [0.6, C.indigo], [1, C.jazzberryJam]]],
+    [1, [[0, C.dukeBlue], [0.6, C.lavenderIndigo], [1, C.orange]]],
+    [6, [[0, C.cobaltBlue], [0.6, C.pictonBlue], [1, C.rajah]]],
+    [18, [[0, C.vividCerulean], [0.6, C.pictonBlue], [1, C.celeste]]],
+  ];
+  if (alt <= keys[0][0]) return keys[0][1];
+  if (alt >= keys[keys.length - 1][0]) return keys[keys.length - 1][1];
+  let i = 0; while (alt > keys[i + 1][0]) i++;
+  const u = (alt - keys[i][0]) / (keys[i + 1][0] - keys[i][0]);
+  return keys[i][1].map(([t, a], k) => [t, a.map((v, j) => v + (keys[i + 1][1][k][1][j] - v) * u)]);
+}
+function ditherFill(img, x0, y0, x1, y1, stops) {
+  for (let y = y0; y < y1; y++) {
+    const t = (y - y0) / Math.max(1, y1 - y0 - 1);
+    let i = 0; while (i < stops.length - 2 && t > stops[i + 1][0]) i++;
+    const [ta, ca] = stops[i], [tb, cb] = stops[i + 1];
+    const u = Math.max(0, Math.min(1, (t - ta) / Math.max(1e-6, tb - ta)));
+    for (let x = x0; x < x1; x++) {
+      const th = BAYER[(y & 3) * 4 + (x & 3)], o = (y * W + x) * 4;
+      for (let k = 0; k < 3; k++) img.data[o + k] = qd(ca[k] + (cb[k] - ca[k]) * u, th);
+      img.data[o + 3] = 255;
+    }
+  }
+}
+// The sun's glow, after the Solar face: a radial gradient centred on the sun, clipped at the horizon,
+// whose colours follow the sun's altitude. Each key: altitude, radius (px), gain, and colour stops
+// [u = distance / radius, r, g, b]. The C code (src/c/glow.c) uses the same table.
+const GLOW = [ // copied from src/c/glow.c (SUN_KEYS); squash < 1 flattens the glow along the horizon
+  { alt: -16, R: 80, squash: 0.5, gain: 0.0, stops: [[0, 0, 0, 0], [1, 0, 0, 0]] },
+  { alt: -10, R: 96, squash: 0.45, gain: 0.7, stops: [[0, 255, 85, 255], [0.3, 170, 85, 255], [0.62, 85, 0, 170], [0.82, 40, 0, 85], [1, 0, 0, 0]] },
+  { alt: -4, R: 108, squash: 0.5, gain: 1.0, stops: [[0, 255, 220, 230], [0.12, 255, 140, 200], [0.32, 255, 60, 170], [0.55, 190, 90, 255], [0.78, 85, 40, 170], [0.9, 30, 10, 60], [1, 0, 0, 0]] },
+  { alt: 0, R: 106, squash: 0.6, gain: 1.0, stops: [[0, 255, 255, 210], [0.08, 255, 230, 100], [0.22, 255, 170, 40], [0.4, 255, 90, 120], [0.62, 200, 90, 230], [0.82, 80, 40, 150], [1, 0, 0, 0]] },
+  { alt: 8, R: 94, squash: 0.82, gain: 1.0, stops: [[0, 255, 255, 230], [0.07, 255, 250, 140], [0.2, 255, 200, 90], [0.38, 255, 130, 170], [0.6, 150, 130, 255], [0.82, 50, 40, 130], [1, 0, 0, 0]] },
+  { alt: 22, R: 86, squash: 1.0, gain: 1.0, stops: [[0, 255, 255, 255], [0.06, 255, 255, 170], [0.16, 170, 255, 220], [0.32, 85, 220, 255], [0.52, 100, 150, 255], [0.75, 110, 70, 200], [0.9, 40, 20, 80], [1, 0, 0, 0]] },
+];
+// The moon's glow: small and soft, amber when low like a harvest moon, silver-violet when high.
+const MOON_GLOW = [ // copied from src/c/glow.c (MOON_KEYS)
+  { alt: 6, R: 40, squash: 0.8, gain: 0.6, stops: [[0, 255, 230, 170], [0.15, 255, 190, 110], [0.42, 200, 110, 110], [0.72, 70, 30, 70], [1, 0, 0, 0]] },
+  { alt: 18, R: 44, squash: 1.0, gain: 0.6, stops: [[0, 240, 245, 255], [0.15, 190, 200, 255], [0.42, 120, 120, 230], [0.72, 40, 40, 110], [1, 0, 0, 0]] },
+];
+const GLOW_LUT = 64;
+function glowAt(alt, k = GLOW, strength = 1) { // { R, squash, lut: [[r, g, b] x GLOW_LUT] } for this altitude
+  let i = 0;
+  if (alt <= k[0].alt) i = 0; else if (alt >= k[k.length - 1].alt) i = k.length - 2; else while (alt > k[i + 1].alt) i++;
+  const a = k[i], b = k[i + 1];
+  const t = Math.max(0, Math.min(1, (alt - a.alt) / (b.alt - a.alt)));
+  const sample = (key, u) => {
+    let j = 0; while (j < key.stops.length - 2 && u > key.stops[j + 1][0]) j++;
+    const s0 = key.stops[j], s1 = key.stops[j + 1], v = Math.max(0, Math.min(1, (u - s0[0]) / (s1[0] - s0[0])));
+    return [1, 2, 3].map((c) => (s0[c] + (s1[c] - s0[c]) * v) * key.gain);
+  };
+  const lut = [];
+  for (let n = 0; n < GLOW_LUT; n++) {
+    const u = Math.sqrt(n / (GLOW_LUT - 1)), ca = sample(a, u), cb = sample(b, u);
+    lut.push(ca.map((v, c) => (v + (cb[c] - v) * t) * strength));
+  }
+  return { R: a.R + (b.R - a.R) * t, squash: a.squash + (b.squash - a.squash) * t, lut };
+}
+// Paints the glows (the sun's, and the moon's at night) into the image above the horizon, adding
+// them and dithering once. They fade over the header (top 70 px) so the time stays legible.
+function drawGlows(img, sources, horizon) {
+  sources = sources.filter((g) => g.lut[0][0] + g.lut[0][1] + g.lut[0][2] >= 1);
+  if (!sources.length) return;
+  for (let y = 0; y < horizon; y++) {
+    const att = y >= 70 ? 1 : 0.4 + 0.6 * (y / 70);
+    for (let x = 0; x < W; x++) {
+      let r = 0, gr = 0, b = 0, hit = false;
+      for (const g of sources) {
+        const dx = x - g.x, dy = (y - g.y) / g.squash, d2 = dx * dx + dy * dy, r2 = g.R * g.R;
+        if (d2 >= r2) continue;
+        const c = g.lut[Math.floor(d2 * (GLOW_LUT - 1) / r2)];
+        r += c[0]; gr += c[1]; b += c[2]; hit = true;
+      }
+      if (!hit) continue;
+      const th = BAYER[(y & 3) * 4 + (x & 3)], o = (y * W + x) * 4;
+      img.data[o] = qd(Math.min(255, r * att), th); img.data[o + 1] = qd(Math.min(255, gr * att), th); img.data[o + 2] = qd(Math.min(255, b * att), th);
+    }
+  }
+}
+// The moon's strength: its glow follows how full it is, and only shows once the sky is dark.
+// ---- Flat glow styles, in Pebble's design language: a few flat palette colours, crisp edges, no
+// smooth dither. Each stretch of the day has its own short colour sequence, inner to outer.
+const PC = { // Pebble GColor values
+  pastelYellow: [255, 255, 170], icterine: [255, 255, 85], chromeYellow: [255, 170, 0], orange: [255, 85, 0],
+  rajah: [255, 170, 85], melon: [255, 170, 170], folly: [255, 0, 85], fashionMagenta: [255, 0, 170],
+  shockingPink: [255, 85, 255], richBrilliantLavender: [255, 170, 255], purple: [170, 0, 170], indigo: [85, 0, 170],
+  lavenderIndigo: [170, 85, 255], jazzberryJam: [170, 0, 85], electricBlue: [85, 255, 255], pictonBlue: [85, 170, 255],
+  veryLightBlue: [85, 85, 255], babyBlueEyes: [170, 170, 255], liberty: [85, 85, 170], celeste: [170, 255, 255],
+};
+const BANDS = [ // from this sun altitude up: colours from the sun outward
+  { from: -12, c: ['lavenderIndigo', 'purple', 'indigo'] },
+  { from: -6, c: ['richBrilliantLavender', 'shockingPink', 'purple', 'indigo'] },
+  { from: -1, c: ['pastelYellow', 'chromeYellow', 'orange', 'folly', 'purple'] },
+  { from: 5, c: ['pastelYellow', 'icterine', 'chromeYellow', 'melon', 'babyBlueEyes'] },
+  { from: 15, c: ['pastelYellow', 'electricBlue', 'pictonBlue', 'veryLightBlue'] },
+];
+function bandsAt(alt) {
+  if (alt < -12) return null;
+  let b = BANDS[0];
+  for (const k of BANDS) if (alt >= k.from) b = k;
+  return b.c.map((n) => PC[n]);
+}
+const STYLE_CLIP_TOP = 0; // flat colour runs to the top; the header text gets a black outline instead
+// Paints one body's flat glow. `u` is the elliptical distance as a fraction of the radius.
+function paintFlat(img, style, sx, sy, R, squash, colors, horizon, minuteOfDay) {
+  const n = colors.length, rot = (minuteOfDay % 360) * RAD; // the sunburst turns a degree a minute
+  const y0 = Math.max(STYLE_CLIP_TOP, Math.floor(sy - R * squash)), y1 = Math.min(horizon, Math.ceil(sy + R * squash));
+  const put = (x, y, c) => { const o = (y * W + x) * 4; img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; };
+  const uAt = (x, y) => Math.hypot(x - sx, (y - sy) / squash) / R;
+  for (let y = y0; y < y1; y++) {
+    for (let x = Math.max(0, Math.floor(sx - R)); x < Math.min(W, Math.ceil(sx + R)); x++) {
+      let u = uAt(x, y);
+      if (style === 'pixel') u = uAt((x & ~3) + 2, (y & ~3) + 2); // 4 x 4 blocks
+      if (u >= 1) continue;
+      if (style === 'bands') {
+        put(x, y, colors[Math.floor(u * n)]);
+      } else if (style === 'ripples') {
+        const r = u * R;
+        for (let k = 0; k < n; k++) { const rk = R * (k + 1) / (n + 0.4); if (Math.abs(r - rk) <= 1.6) put(x, y, colors[k]); }
+        if (r < R * 0.16) put(x, y, colors[0]);
+      } else if (style === 'rays') {
+        const a = Math.atan2((y - sy) / squash, x - sx) + rot;
+        const wedge = Math.floor(((a % (2 * Math.PI)) + 2 * Math.PI) / (2 * Math.PI / 16)) % 2;
+        if (u < 0.2) put(x, y, colors[0]);
+        else if (wedge === 0) put(x, y, colors[Math.min(n - 1, Math.floor(u * n))]);
+        else if (u < 0.45) put(x, y, colors[Math.min(n - 1, 1)]);
+      } else if (style === 'pixel') {
+        const level = u * n, k = Math.floor(level), frac = level - k;
+        const checker = (((x >> 1) + (y >> 1)) & 1) === 1;
+        const c = frac > 0.62 && checker ? (colors[k + 1] || [0, 0, 0]) : colors[k];
+        put(x, y, c);
+      } else if (style === 'scan') {
+        const thick = u < 0.4 ? 3 : u < 0.7 ? 2 : 1, phase = ((y - Math.round(sy)) % 4 + 4) % 4;
+        if (phase < thick) put(x, y, colors[Math.floor(u * n)]);
+      }
+    }
+  }
+}
+function drawFlatGlows(img, style, sun, moon, horizon, minuteOfDay) {
+  const colors = bandsAt(sun.alt);
+  if (colors) paintFlat(img, style, sun.x, sun.y, sun.R, sun.squash, colors, horizon, minuteOfDay);
+  if (moon && moon.strength > 0.25) {
+    const mc = moon.alt < 6 ? [PC.rajah, PC.jazzberryJam] : [PC.babyBlueEyes, PC.liberty];
+    paintFlat(img, style === 'rays' ? 'bands' : style, moon.x, moon.y, moon.strength > 0.6 ? 34 : 24, 1, moon.strength > 0.6 ? mc : mc.slice(1), horizon, minuteOfDay);
+  }
+}
+function moonStrength(m, sunAlt) { return Math.pow(m.lit, 0.8) * Math.max(0, Math.min(1, -sunAlt / 8)); }
+// A small pixel moon with its real phase; the unlit part shows faintly at night (earthshine).
+function moonGlyph(x0, y0, m, lat, night) {
+  const r = 6, a = 1 - 2 * m.lit, litRight = m.waxing !== (lat < 0);
+  for (let py = -r; py <= r; py++) for (let px = -r; px <= r; px++) {
+    if (px * px + py * py > r * r + r * 0.8) continue;
+    const ny = py / r, nx = px / r, edge = Math.sqrt(Math.max(0, 1 - ny * ny));
+    const lit = litRight ? nx > a * edge : nx < -a * edge;
+    if (lit) rect(Math.round(x0) + px, Math.round(y0) + py, 1, 1, C.pastelYellow);
+    else if (night) rect(Math.round(x0) + px, Math.round(y0) + py, 1, 1, C.darkGray);
+  }
+}
+function sunGlowGlyph(x, y, alt) { // white sun by day; a black disc ringed in white once it has set
+  if (alt >= -0.833) { disc(x, y, 7, alt > 12 ? C.white : C.pastelYellow); }
+  else { disc(x, y, 8, C.black); ring(x, y, 7, 3, C.white); }
+}
+function stars(x0, y0, x1, y1, seed) {
+  let s = seed;
+  for (let i = 0; i < 22; i++) { s = (s * 1103515245 + 12345) & 0x7fffffff; const x = x0 + (s % (x1 - x0)); s = (s * 1103515245 + 12345) & 0x7fffffff; const y = y0 + (s % (y1 - y0)); rect(x, y, 1, 1, i % 5 ? C.lightGray : C.white); }
+}
+
+// ---- Complication values -------------------------------------------------------------
+function compValue(id, f) {
+  const p = st.place, h = st.h24;
+  switch (id) {
+    case 'next_sun': {
+      if (f.rise == null) return { v: '—', l: f.noonAlt < 0 ? 'NO SUNRISE' : 'NO SUNSET' };
+      if (st.min < f.rise) return { v: fmtTime(f.rise, h), l: 'SUNRISE' };
+      if (st.min < f.set) return { v: fmtTime(f.set, h), l: 'SUNSET' };
+      return { v: f.riseTomorrow == null ? '—' : fmtTime(f.riseTomorrow, h), l: 'SUNRISE' };
+    }
+    case 'daylight':
+      if (f.rise == null) return { v: f.noonAlt < 0 ? '0h00' : '24h00', l: 'DAYLIGHT' };
+      if (st.min >= f.rise && st.min < f.set) return { v: dur(f.set - st.min), l: 'DAY LEFT' };
+      return { v: dur(f.dayLen), l: 'DAYLIGHT' };
+    case 'golden': {
+      const evts = [f.goldAm, f.goldPm].filter(t => t != null && t > st.min);
+      return { v: evts.length ? fmtTime(evts[0], h) : '—', l: 'GOLDEN HR' };
+    }
+    case 'sun_alt': return { v: Math.round(f.altNow) + '°', l: 'SUN' };
+    case 'moon': { const m = f.moonNow; return { v: Math.round(m.lit * 100) + '%', l: m.lit < 0.03 ? 'NEW' : m.lit > 0.97 ? 'FULL' : m.waxing ? 'WAXING' : 'WANING' }; }
+    case 'battery': return { v: '80%', l: 'BATTERY' };
+    case 'steps': return { v: '6,214', l: 'STEPS' };
+    case 'distance': return { v: '4.1', l: 'KM' };
+    case 'heart': return { v: '68', l: 'BPM' };
+    case 'wx_hilo': return { v: `${p.hi}/${p.lo}`, l: 'HI / LO' };
+    case 'wx_precip': return { v: p.rain + '%', l: 'RAIN' };
+    case 'wx_feels': return { v: p.feels + '°', l: 'FEELS' };
+    case 'wx_humidity': return { v: p.hum + '%', l: 'HUMIDITY' };
+    case 'wx_wind': return { v: p.wind, l: 'WIND' };
+    case 'wx_uv': return { v: String(p.uv), l: 'UV' };
+    case 'phone_battery': return { v: '71%', l: 'PHONE' };
+    case 'next_event': return { v: fmtTime(870, h), l: 'STANDUP' };
+    case 'pebble_1': return { v: '71%', l: 'PHONE' };
+    case 'pebble_2': return { v: '52°', l: 'SEATTLE' };
+    case 'pebble_3': return { v: fmtTime(870, h), l: 'STANDUP' };
+    default: return null;
+  }
+}
+
+// ---- Final design ----------------------------------------------------------------------
+const DOW = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const L = { // layout constants, in watch pixels (mirrored in layout.h)
+  margin: 6, timeY: 0, dateY: 47, graphTop: 70, horizon: 130, ampUp: 56, ampDown: 42, footY: 186, footLabelY: 210,
+  qvHeight: 51, slotX: [34, 100, 166],
+};
+
+function drawFinal(f, img) {
+  const unob = st.qv ? H - L.qvHeight : H;
+  const showFooter = !st.qv;
+  const glow = st.theme !== 'classic';
+  const HZ = L.horizon, yOf = (a) => HZ - Math.sin(a * RAD) * (a >= 0 ? L.ampUp : L.ampDown);
+  const isDay = f.altNow >= 0, nowX = st.min / 1440 * W;
+  // The sun and the moon share the "now" column. When they would touch, the sun outshines the moon by
+  // day; once the sun has set, the moon sits just above it.
+  const m = f.moonNow, moonX = nowX, sunY = yOf(f.altNow);
+  const touching = Math.abs(yOf(m.alt) - sunY) < 16, sunUp = f.altNow >= -0.833;
+  const moonY = touching ? sunY - 16 : yOf(m.alt);
+  // At night once it is more than a sliver; by day only from about first quarter.
+  const moonShown = st.moon && m.alt >= 0 && m.lit > (sunUp ? 0.25 : 0.08) && !(touching && sunUp);
+  if (glow && !st.flick && st.style === 'soft') {
+    const sources = [{ x: nowX, y: yOf(f.altNow), ...glowAt(f.altNow) }];
+    if (moonShown) sources.push({ x: moonX, y: moonY, ...glowAt(m.alt, MOON_GLOW, moonStrength(m, f.altNow)) });
+    drawGlows(img, sources, HZ);
+  } else if (glow && !st.flick) {
+    const g = glowAt(f.altNow);
+    const sun = { x: nowX, y: yOf(f.altNow), alt: f.altNow, R: g.R * 0.86, squash: g.squash };
+    const moonG = moonShown ? { x: moonX, y: moonY, alt: m.alt, strength: moonStrength(m, f.altNow) } : null;
+    drawFlatGlows(img, st.style, sun, moonG, HZ, st.min);
+  }
+  ctx.putImageData(img, 0, 0);
+
+  // Header, as on the Solar face: the date top-left, a large thin time top-right; the weather under the date.
+  OUTLINE = glow && st.style !== 'soft' && !st.flick;
+  text(fmtTime(st.min, st.h24), W - L.margin, L.timeY, F.time, C.white, 'right');
+  text(`${DOW[f.dow]} ${f.d}`, L.margin + 1, 3, F.g18b, glow ? C.white : C.chromeYellow);
+  if (st.wx === 'none') {
+    text('--°', L.margin + 1, 24, F.g24b, C.darkGray);
+  } else {
+    wxIcon(st.wx, L.margin - 1, 25, 22, isDay);
+    text(`${st.place.temp}°`, L.margin + 23, 24, F.g24b, C.white);
+    text(`${st.place.hi}° ${st.place.lo}°`, L.margin + 1, 48, F.g18b, C.lightGray);
+  }
+
+  OUTLINE = false;
+  // Graph.
+  if (glow) {
+    line(0, HZ, W, HZ, 2, C.lightGray);
+    let prev = null;
+    for (let x = 0; x < W; x++) { const y = yOf(f.alts[x]); if (prev !== null) line(x - 1, prev, x, y, 2, C.lightGray); prev = y; }
+  } else {
+    line(0, HZ, W, HZ, 2, C.lightGray);
+    sunPath(f.alts, nowX, yOf, { pastDay: C.chromeYellow, pastNight: C.lightGray, futureDay: C.pastelYellow, futureNight: C.lightGray }, 1);
+  }
+
+  // Horizon labels: below the line, inside the day span, where the path never goes.
+  if (f.rise == null) {
+    // The whole path is on one side of the line, so the label goes on the empty side.
+    if (f.noonAlt < 0) text('POLAR NIGHT', W / 2, HZ - 4, F.g14b, C.lightGray, 'center', 'bottom');
+    else text('MIDNIGHT SUN', W / 2, HZ + 4, F.g14b, C.lightGray, 'center');
+  } else if (!st.flick) {
+    const rx = f.rise / 1440 * W, sx = f.set / 1440 * W, sunY = yOf(f.altNow);
+    const rt = fmtTime(f.rise, st.h24), stt = fmtTime(f.set, st.h24);
+    const rw = measure(rt, F.g14), sw = measure(stt, F.g14);
+    if (sx - rx >= rw + sw + 12) {
+      const near = (x0, x1) => nowX + 10 > x0 && nowX - 10 < x1 && sunY + 10 > HZ + 2 && sunY - 10 < HZ + 18;
+      line(rx, HZ - 3, rx, HZ + 4, 2, C.lightGray); line(sx, HZ - 3, sx, HZ + 4, 2, C.lightGray);
+      if (!near(rx + 3, rx + 3 + rw)) text(rt, rx + 3, HZ + 4, F.g14b, C.lightGray, 'left');
+      if (!near(sx - 3 - sw, sx - 3)) text(stt, sx - 3, HZ + 4, F.g14b, C.lightGray, 'right');
+    }
+  }
+
+  // The moon's faint path while it is up, and the moon itself.
+  if (!st.flick && st.moon) {
+    for (let x = 3; x < W; x += 6) if (f.moonAlts[x] >= 0) rect(x - 1, Math.round(yOf(f.moonAlts[x])) - 1, 2, 2, C.lightGray);
+    if (moonShown) moonGlyph(moonX, moonY, m, st.place.lat, f.altNow < -4);
+  }
+  // The sun goes over its own horizon tick.
+  if (!st.flick) {
+    if (glow) sunGlowGlyph(nowX, yOf(f.altNow), f.altNow);
+    else sunGlyph(nowX, yOf(f.altNow), f.altNow, C.black);
+  }
+
+  // Wrist-flick detail card, over the graph for five seconds.
+  if (st.flick) {
+    rect(0, L.graphTop, W, 112, C.black);
+    line(0, L.graphTop + 0.5, W, L.graphTop + 0.5, 1, C.darkGray);
+    const cell = (lab, val, x, y) => { text(lab, x, y, F.g14b, C.lightGray); text(val, x, y + 13, F.g18b, C.white); };
+    const T = (t) => t == null ? '—' : fmtTime(t, st.h24);
+    const delta = f.dayLen != null && f.dayLenY != null ? f.dayLen - f.dayLenY : null;
+    const dTxt = delta == null ? '—' : (delta >= 0 ? '+' : '−') + Math.floor(Math.abs(delta)) + 'm ' + String(Math.round(Math.abs(delta) % 1 * 60)).padStart(2, '0') + 's';
+    const y0 = L.graphTop + 6;
+    cell('FIRST LIGHT', T(f.dawn), 8, y0); cell('LAST LIGHT', T(f.dusk), 106, y0);
+    cell('SUNRISE', T(f.rise), 8, y0 + 34); cell('SUNSET', T(f.set), 106, y0 + 34);
+    cell('SOLAR NOON', `${T(f.noon)}  ${Math.round(f.noonAlt)}°`, 8, y0 + 68); cell('VS YESTERDAY', dTxt, 106, y0 + 68);
+  }
+
+  // Complications.
+  if (showFooter) {
+    st.slots.forEach((id, i) => {
+      const c = compValue(id, f); if (!c) return;
+      const cx = L.slotX[i];
+      const font = measure(c.v, F.g28b) <= 64 ? F.g28b : measure(c.v, F.g24b) <= 62 ? F.g24b : F.g18b;
+      text(c.v, cx, font === F.g28b ? L.footY - 4 : font === F.g24b ? L.footY : L.footY + 4, font, C.white, 'center');
+      let lab = c.l; while (measure(lab, F.g14b) > 66 && lab.length > 3) lab = lab.slice(0, -1);
+      text(lab, cx, L.footLabelY, F.g14b, C.lightGray, 'center');
+    });
+  } else {
+    // simulated Timeline Quick View peek
+    rect(0, unob, W, H - unob, C.white);
+    rect(0, unob, 6, H - unob, C.vividCerulean);
+    text('2:30 PM', 14, unob + 6, F.g14b, C.black); text('Standup · Room 4', 14, unob + 22, F.g18, C.black);
+  }
+  return { regions: [['header', 0, 0, W, 68], ['graph', 0, L.graphTop, W, 112], ['complications', 0, 184, W, 44]] };
+}
+
+// ---- Explorations kept for reference (round 1) -----------------------------------------
+
+// ---- PebbleOS timeline illustration style ------------------------------------------------
+// After PebbleOS's own icons (resources/normal/base/images in coredevices/PebbleOS): one thick
+// monoline stroke with round caps, faceted shapes instead of curves, characters with faces, light
+// shown as short dash rays, flat fills and one accent colour.
+function poly(points, fill, stroke, w) {
+  ctx.beginPath(); points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+  if (fill) { ctx.fillStyle = css(fill); ctx.fill(); }
+  if (stroke) { ctx.lineWidth = w; ctx.strokeStyle = css(stroke); ctx.lineJoin = 'round'; ctx.stroke(); }
+}
+function polyline(points, stroke, w) {
+  ctx.beginPath(); points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.lineWidth = w; ctx.strokeStyle = css(stroke); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke();
+}
+const facets = (cx, cy, R, n, inner, rot) => Array.from({ length: n }, (_, i) => { const a = (rot + i * 360 / n) * RAD, r = i % 2 ? R * inner : R; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; });
+const PB_R = 15; // the sun's radius in watch pixels
+const sunFillAt = (alt) => (alt > 20 ? C.yellow : alt > 6 ? C.chromeYellow : C.orange);
+// The day-separator sun: a wobbly 16-sided body, two upright eyes set a little left, a V smile.
+// Sleepy (eyes shut) near the horizon, a wider smile once it is high.
+function pebbleSun(cx, cy, R, alt, outline, horizon, rays, anim) {
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, horizon); ctx.clip();
+  const len = 2 + 4 * Math.max(0, Math.min(1, alt / 30));
+  for (let k = 0; k < 8; k++) {
+    const g = anim ? anim.ray(k) : 1; if (g <= 0) continue;
+    const a = (-90 + k * 45) * RAD, r0 = R + 4 - 3 * (1 - g);
+    line(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0, cx + Math.cos(a) * (r0 + len * g), cy + Math.sin(a) * (r0 + len * g), 2, rays || outline);
+  }
+  poly(facets(cx, cy, R, 16, 0.87, -90), sunFillAt(alt), outline, 2.5);
+  const face = C.black, ex1 = cx - 0.34 * R, ex2 = cx + 0.3 * R, ey = cy - 0.14 * R;
+  if (alt < 6 || (anim && anim.shut)) { polyline([[ex1 - 2.5, ey], [ex1, ey + 1.5], [ex1 + 2.5, ey]], face, 2); polyline([[ex2 - 2.5, ey], [ex2, ey + 1.5], [ex2 + 2.5, ey]], face, 2); }
+  else { line(ex1, ey - 2.5, ex1, ey + 2.5, 2, face); line(ex2, ey - 2.5, ex2, ey + 2.5, 2, face); }
+  polyline([[cx - 0.36 * R, cy + 0.28 * R], [cx - 0.03 * R, cy + (alt > 30 ? 0.5 : 0.42) * R], [cx + 0.3 * R, cy + 0.28 * R]], face, 2);
+  ctx.restore();
+}
+// Below the horizon: the sun asleep, outline only, with a small z.
+function pebbleSunAsleep(cx, cy, R, ink) {
+  poly(facets(cx, cy, R, 16, 0.87, -90), null, ink, 2);
+  const ey = cy - 0.1 * R;
+  polyline([[cx - 0.34 * R - 2, ey], [cx - 0.34 * R, ey + 1.2], [cx - 0.34 * R + 2, ey]], ink, 1.5);
+  polyline([[cx + 0.3 * R - 2, ey], [cx + 0.3 * R, ey + 1.2], [cx + 0.3 * R + 2, ey]], ink, 1.5);
+  const zx = cx + R + 3 > W - 8 ? cx - R - 8 : cx + R + 2, zy = cy - R;
+  polyline([[zx, zy], [zx + 5, zy], [zx, zy + 5], [zx + 5, zy + 5]], ink, 1.5);
+}
+// The faceted moon: an octagon lit with its real phase; a face when it is mostly lit.
+function pebbleMoon(cx, cy, m, lat, outline, dark) {
+  const r = 10, oct = facets(cx, cy, r, 8, 1, 22.5);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, L.horizon); ctx.clip();
+  poly(oct, dark, null, 0);
+  ctx.save(); ctx.beginPath(); oct.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.clip();
+  const a = 1 - 2 * m.lit, litRight = m.waxing !== (lat < 0);
+  for (let py = -r; py <= r; py++) for (let px = -r; px <= r; px++) {
+    const ny = py / r, edge = Math.sqrt(Math.max(0, 1 - ny * ny)), nx = px / r;
+    if (litRight ? nx > a * edge : nx < -a * edge) rect(Math.round(cx) + px, Math.round(cy) + py, 1, 1, C.pastelYellow);
+  }
+  ctx.restore();
+  poly(oct, null, outline, 2.5);
+  if (m.lit > 0.6) { // a ^ eye and a little smile, as on the PebbleOS moon
+    polyline([[cx - 5, cy - 1], [cx - 3, cy - 3.5], [cx - 1, cy - 1]], C.black, 2);
+    polyline([[cx + 1.5, cy - 1], [cx + 3.5, cy - 3.5], [cx + 5.5, cy - 1]], C.black, 2);
+    polyline([[cx - 3, cy + 3], [cx + 0.5, cy + 5], [cx + 4, cy + 3]], C.black, 2);
+  }
+  ctx.restore();
+}
+// PebbleOS's chamfered cloud, w x h, with its little fold line.
+function pebbleCloud(x, y, w, h, ink, paper) {
+  const k = (px, py) => [x + px * w / 24, y + py * h / 12];
+  poly([k(2, 12), k(0, 10), k(0, 6), k(3, 3), k(8, 3), k(11, 0), k(16, 0), k(19, 3), k(21, 3), k(24, 6), k(24, 10), k(22, 12)], paper, ink, 2.5);
+  polyline([k(8, 3), k(10.5, 5.5)], ink, 2);
+}
+// Clouds over the body, with rain dashes or snow pluses under them, in Pebble's icon style.
+function pebbleWeather(code, sx, sy, R, ink, paper) {
+  if (!code || code === 'sun' || code === 'none') return;
+  const full = code !== 'partly_cloudy', cw = full ? 34 : 28, ch = full ? 16 : 14, cx = sx - cw * 0.12;
+  const drops = code.includes('rain') || code.includes('snow'), cy = Math.min(sy + R * 0.05, L.horizon - ch - (drops ? 14 : 3));
+  if (code === 'cloudy' || code.startsWith('heavy')) pebbleCloud(sx - cw * 0.95, sy - R - 2, cw * 0.65, ch * 0.7, ink, paper);
+  pebbleCloud(cx, cy, cw, ch, ink, paper);
+  const below = cy + ch + 3, n = code.startsWith('heavy') ? 4 : 3;
+  for (let i = 0; i < n; i++) {
+    const px = cx + 6 + i * 7, py = below + (i % 2) * 3;
+    if (code.includes('rain')) line(px, py, px - 1, py + 4, 2, ink);
+    if (code.includes('snow')) { line(px - 2, py + 2, px + 2, py + 2, 2, ink); line(px, py, px, py + 4, 2, ink); }
+  }
+}
+function pebbleStar(x, y, ink, big) { const r = big ? 3 : 2; line(x - r, y, x + r, y, 1.5, ink); line(x, y - r, x, y + r, 1.5, ink); }
+// A small weather icon for the header, in the same line style.
+function pebbleWxIcon(code, x, y, ink, paper, isDay) {
+  if (code === 'sun' || code === 'partly_cloudy') {
+    if (isDay) { const c = [x + 9, y + 9]; for (let k = 0; k < 8; k++) { const a = k * 45 * RAD; line(c[0] + Math.cos(a) * 6.5, c[1] + Math.sin(a) * 6.5, c[0] + Math.cos(a) * 8.5, c[1] + Math.sin(a) * 8.5, 1.5, ink); }
+      poly(facets(c[0], c[1], 4.5, 8, 1, 22.5), paper, ink, 1.5); }
+    else poly(facets(x + 9, y + 8, 5, 8, 1, 22.5), paper, ink, 1.5);
+    if (code === 'partly_cloudy') pebbleCloud(x + 6, y + 9, 15, 8, ink, paper);
+    return;
+  }
+  pebbleCloud(x, y + 3, 19, 10, ink, paper);
+  if (code.includes('rain')) for (let i = 0; i < 3; i++) line(x + 4 + i * 5, y + 16, x + 4 + i * 5, y + 18.5, 1.5, ink);
+  if (code.includes('snow')) for (let i = 0; i < 3; i++) { line(x + 3 + i * 5, y + 17, x + 6 + i * 5, y + 17, 1.2, ink); line(x + 4.5 + i * 5, y + 15.5, x + 4.5 + i * 5, y + 18.5, 1.2, ink); }
+}
+
+// variant: 'light' (white, black ink, a time-of-day sidebar), 'dark' (black, white ink), 'glow' (dark + the soft glow)
+function drawPebble(f, img, variant) {
+  const light = variant === 'light';
+  const bg = light ? C.white : C.black, ink = light ? C.black : C.white, soft = light ? C.darkGray : C.lightGray;
+  const GW = light ? 186 : W; // the light design gives the right edge to the sidebar
+  const HZ = L.horizon, yOf = (a) => HZ - Math.sin(a * RAD) * (a >= 0 ? L.ampUp : L.ampDown);
+  const xOf = (min) => min / 1440 * GW, colAlt = (x) => f.alts[Math.max(0, Math.min(W - 1, Math.round(x * W / GW)))];
+  const up = f.altNow >= -0.833, sunX = xOf(st.min);
+  let sunY = up ? Math.min(yOf(f.altNow), HZ - PB_R * 0.45) : yOf(f.altNow);
+  // The wake-up, after PebbleOS's own animations (moook): the body springs up from behind the
+  // horizon with a little overshoot, the rays pop out one by one, then the eyes open and blink.
+  let anim = null, rise = 1;
+  if (st.anim != null) {
+    const t = st.anim, p = Math.max(0, Math.min(1, t / 420)), c1 = 2.2;
+    rise = 1 + (c1 + 1) * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); // ease-out-back
+    anim = { ray: (k) => Math.max(0, Math.min(1, (t - 330 - k * 40) / 110)), shut: t < 760 || (t > 1120 && t < 1200) };
+    if (up) sunY = (HZ + PB_R + 2) + (sunY - (HZ + PB_R + 2)) * rise;
+  }
+  for (let i = 0; i < img.data.length; i += 4) { img.data[i] = bg[0]; img.data[i + 1] = bg[1]; img.data[i + 2] = bg[2]; img.data[i + 3] = 255; }
+  if (variant === 'glow') drawGlows(img, [{ x: sunX, y: sunY, ...glowAt(f.altNow) }], HZ);
+  ctx.putImageData(img, 0, 0);
+
+  // Sidebar: a flat colour for the time of day, with a tab pointing at the sun.
+  if (light) {
+    const a = f.altNow;
+    const side = a >= 6 ? C.chromeYellow : a >= -1 ? C.orange : a >= -6 ? [255, 0, 85] : a >= -12 ? [170, 0, 170] : C.dukeBlue;
+    rect(GW + 2, 0, W - GW - 2, H, side);
+    const ty = Math.max(76, Math.min(176, sunY));
+    poly([[GW + 2, ty - 7], [GW - 4, ty], [GW + 2, ty + 7]], side, null, 0);
+  }
+
+  // Header.
+  text(fmtTime(st.min, st.h24), GW - L.margin + (light ? 2 : 0), L.timeY, F.time, ink, 'right');
+  text(`${DOW[f.dow]} ${f.d}`, L.margin + 1, 3, F.g18b, ink);
+  if (st.wx !== 'none') {
+    pebbleWxIcon(st.wx, L.margin - 1, 24, ink, bg, up);
+    text(`${st.place.temp}°`, L.margin + 23, 24, F.g24b, ink);
+    text(`${st.place.hi}° ${st.place.lo}°`, L.margin + 1, 48, F.g18b, soft);
+  }
+
+  // Night: a few sparkles.
+  if (f.altNow < -8) [[16, 80, 1], [58, 74, 0], [104, 90, 1], [146, 78, 0], [36, 106, 0], [128, 110, 0]].forEach(([x, y, b]) => pebbleStar(x * GW / W, y, soft, b));
+
+  // The path: solid while the sun is up, dotted while it sleeps. The moon's path in small dots.
+  for (let x = 3; x < GW; x += 6) { const ma = f.moonAlts[Math.min(W - 1, Math.round(x * W / GW))]; if (ma >= 0) rect(x - 1, Math.round(yOf(ma)) - 1, 2, 2, soft); }
+  let prev = null;
+  for (let x = 0; x <= GW; x++) {
+    const al = colAlt(x), y = yOf(al);
+    if (al >= 0) { if (prev !== null) line(x - 1, prev, x, y, 2.5, light ? C.black : C.lightGray); prev = y; }
+    else { prev = null; if (x % 5 === 0) rect(x - 1, Math.round(y) - 1, 2, 2, soft); }
+  }
+  if (f.rise != null && st.horizonLabels !== false) {
+    const rx = xOf(f.rise), sx = xOf(f.set), rt = fmtTime(f.rise, st.h24), stt = fmtTime(f.set, st.h24);
+    const clear = (x0, x1) => !(sunX + PB_R + 4 > x0 && sunX - PB_R - 4 < x1 && sunY + PB_R > HZ);
+    if (clear(rx + 3, rx + 32)) text(rt, rx + 4, HZ + 5, F.g14b, soft, 'left');
+    if (clear(sx - 32, sx - 3)) text(stt, sx - 4, HZ + 5, F.g14b, soft, 'right');
+  }
+
+  // The moon, when it is up and lit enough to matter; it steps above the sun if they would touch.
+  const m = f.moonNow, moonY0 = (HZ + 12) + (Math.min(yOf(m.alt), HZ - 4) - (HZ + 12)) * (up ? 1 : rise), touching = Math.abs(moonY0 - sunY) < 30;
+  const moonShown = st.moon && m.alt >= 0 && m.lit > (up ? 0.25 : 0.08) && !(touching && up);
+  if (moonShown) { pebbleMoon(sunX, moonY0, m, st.place.lat, ink, light ? C.lightGray : C.darkGray); if (!up) pebbleWeather(st.wx, sunX, moonY0, 10, ink, bg); }
+
+  // The sun: peeking over the horizon by day, asleep under it at night. The horizon is drawn last,
+  // over the sun's lower half, as in the day-separator icon.
+  const warm = f.altNow > 6 ? C.chromeYellow : C.orange;
+  if (up) { pebbleSun(sunX, sunY, PB_R, f.altNow, light ? ink : warm, HZ, light ? ink : warm, anim); if (!anim || st.anim > 700) pebbleWeather(st.wx, sunX, sunY, PB_R, ink, bg); }
+  else pebbleSunAsleep(sunX, Math.min(sunY, 174), 10, soft);
+  line(2, HZ, GW - 2, HZ, 3, ink);
+
+  // Complications.
+  st.slots.forEach((id, i) => {
+    const c = compValue(id, f); if (!c) return;
+    const x = light ? [31, 93, 155][i] : L.slotX[i];
+    const font = measure(c.v, F.g28b) <= 60 ? F.g28b : measure(c.v, F.g24b) <= 58 ? F.g24b : F.g18b;
+    text(c.v, x, font === F.g28b ? L.footY - 4 : font === F.g24b ? L.footY : L.footY + 4, font, ink, 'center');
+    let lab = c.l; while (measure(lab, F.g14b) > 62 && lab.length > 3) lab = lab.slice(0, -1);
+    text(lab, x, L.footLabelY, F.g14b, soft, 'center');
+  });
+  return { regions: [] };
+}
+
+function drawB(f, img) {
+  const HZ = 96, yOf = (a) => HZ - Math.sin(a * RAD) * (a >= 0 ? 66 : 26), nowX = st.min / 1440 * W;
+  ditherFill(img, 0, 0, W, HZ, lerpStops(f.altNow)); ctx.putImageData(img, 0, 0);
+  const lightSky = f.altNow >= 4;
+  rect(0, HZ, W, H - HZ, C.black);
+  sunPath(f.alts, nowX, yOf, { pastDay: C.white, pastNight: C.liberty, futureDay: lightSky ? C.white : C.lightGray, futureNight: C.darkGray }, 1);
+  sunGlyph(nowX, yOf(f.altNow), f.altNow, C.black);
+  if (st.wx !== 'none') text(`${st.place.temp}°`, 194, 3, F.g28b, lightSky ? C.black : C.white, 'right');
+  text(fmtTime(st.min, st.h24), W / 2, 124, F.timeBold, C.white, 'center');
+  text(`${DOW[f.dow]} ${MON[f.mo - 1]} ${f.d}  ·  ${(COND_LABEL[st.wx] || '').toUpperCase()}`, W / 2, 178, F.g14b, C.chromeYellow, 'center');
+  return { regions: [['sky window', 0, 0, W, HZ], ['time', 0, 120, W, 56]] };
+}
+function drawC(f, img) {
+  ctx.putImageData(img, 0, 0);
+  const cx = 100, cy = 100, R = 76, angOf = (min) => Math.PI / 2 + (min / 1440) * Math.PI * 2;
+  ctx.lineWidth = 8; ctx.strokeStyle = css(C.oxfordBlue); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  if (f.dawn != null) { ctx.strokeStyle = css(C.indigo); ctx.beginPath(); ctx.arc(cx, cy, R, angOf(f.dawn), angOf(f.dusk)); ctx.stroke(); }
+  if (f.rise != null) { ctx.strokeStyle = css(C.chromeYellow); ctx.beginPath(); ctx.arc(cx, cy, R, angOf(f.rise), angOf(f.set)); ctx.stroke(); }
+  const a = angOf(st.min); sunGlyph(cx + Math.cos(a) * R, cy + Math.sin(a) * R, f.altNow, C.black);
+  text(fmtTime(st.min, st.h24), cx, cy - 26, F.time, C.white, 'center');
+  text(`${DOW[f.dow]} ${f.d}`, cx, cy + 22, F.g18b, C.chromeYellow, 'center');
+  return { regions: [['dial', 20, 20, 160, 160]] };
+}
+
+const NOTES = {
+  F: { h: 'Sunpath', p: 'After the Solar face, in Pebble colours: black, a fixed horizon, the sun riding its real path for your place and date and lighting the sky around it with a radial glow clipped at the horizon. The glow changes with the sun\'s height: pink and orange hugging the horizon at sunrise, a yellow core in cyan and violet at midday, magenta at dusk, then darkness. Once the sun sets it becomes a black disc ringed in white, like an eclipse. The moon is quieter: its real phase, a faint dotted path while it is up, and a soft glow once the sky is dark, amber when low and silver-violet when high.',
+       li: ['The date sits top-left and the time top-right, as on the original, with the weather under the date.', 'The sun and the moon share the "now" column; by day the sun outshines a moon beside it, and at dusk a rising full moon sits just above the set sun.', 'Flick your wrist for first light, sunrise, solar noon and its elevation, sunset, last light, and how much the day changed since yesterday.', 'When Timeline Quick View rises, the complication row gives way and nothing else moves.'] },
+  B: { h: 'Explored: live-sky layout', p: 'Round one. The sky ran edge to edge with the time below. It made the time the second read and its info line overflowed, so its sky became a theme inside the final layout instead.', li: [] },
+  PL: { h: 'Timeline: light', p: 'After the PebbleOS timeline day separator: white, bold black monoline drawing, and the faceted character sun with its upright eyes and V smile. At sunrise it peeks over a thick horizon with its eyes shut, wakes once it is a few degrees up, and smiles wider at height. Its dash rays lengthen as it climbs. Clouds, rain dashes and snow pluses are Pebble\'s own icon shapes, drawn over it. At night it sleeps under the horizon in grey outline, and the faceted moon (with a face when it is mostly lit) and a few sparkles come out. A flat sidebar takes the colour of the time of day, with a tab at the sun\'s height.', li: ['White is what the reflective screen shows best with the backlight off.', 'Play the wake-up to see the PebbleOS-style animation that runs when the face appears and on a wrist flick.'] },
+  PD: { h: 'Timeline: dark', p: 'The same characters on black: the sun outlined and rayed in its own warm colour, the linework in white and grey.', li: ['Play the wake-up to see the animation.'] },
+  PG: { h: 'Glow + character', p: 'The Solar glow behind the character sun and moon: the Apple-style light, with Pebble\'s character in the middle of it.', li: ['Play the wake-up to see the animation.'] },
+  C: { h: 'Explored: solar dial', p: 'Round one. A 24-hour ring. Tidy, with room for corners, but it loses how high the sun climbs, which is the point of the face.', li: [] },
+};
+
+function render() {
+  const f = dayFacts();
+  const img = ctx.createImageData(W, H);
+  for (let i = 3; i < img.data.length; i += 4) img.data[i] = 255;
+  const out = ({ F: drawFinal, B: drawB, C: drawC, PL: (f, i) => drawPebble(f, i, 'light'), PD: (f, i) => drawPebble(f, i, 'dark'), PG: (f, i) => drawPebble(f, i, 'glow') })[st.dir](f, img);
+  const px = ctx.getImageData(0, 0, W, H);
+  for (let i = 0; i < px.data.length; i += 4) {
+    let c = [q(px.data[i]), q(px.data[i + 1]), q(px.data[i + 2])];
+    if (st.panel || st.dim) c = panel(c);
+    if (st.dim) { // calibrated from a wrist photo: colours desaturate, black lifts to ~50, white tops out near ~205
+      const lum = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+      c = c.map((v) => Math.round(48 + 0.62 * (v * 0.45 + lum * 0.55)));
+    }
+    px.data[i] = c[0]; px.data[i + 1] = c[1]; px.data[i + 2] = c[2]; px.data[i + 3] = 255;
+  }
+  ctx.putImageData(px, 0, 0);
+  if (st.grid) {
+    ctx.lineWidth = 1; ctx.setLineDash([2, 2]);
+    out.regions.forEach(([, x, y, w, h], i) => { ctx.strokeStyle = ['#ff00ff', '#00ffff', '#ffff00'][i % 3]; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); });
+    ctx.setLineDash([]);
+  }
+  sctx.imageSmoothingEnabled = false; sctx.clearRect(0, 0, W, H); sctx.drawImage(off, 0, 0);
+  screen.style.filter = st.dim ? 'blur(0.5px)' : 'none'; // fine strokes blur into black without the backlight
+  const sunTxt = f.rise == null ? (f.noonAlt < 0 ? 'sun stays below the horizon' : 'sun stays above the horizon') : `rise ${fmtTime(f.rise, true)} · set ${fmtTime(f.set, true)} · day ${dur(f.dayLen)}`;
+  $('readout').textContent = `${st.place.name} · ${fmtTime(st.min, true)} · sun ${f.altNow.toFixed(1)}° · ${sunTxt}`;
+}
+
+function setDir(d) {
+  st.dir = d;
+  document.querySelectorAll('#dirTabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dir === d)));
+  $('themeField').hidden = d !== 'F'; $('slotField').hidden = d !== 'F' && !d.startsWith('P'); $('styleField').hidden = d !== 'F';
+  $('animField').hidden = !d.startsWith('P');
+  const n = NOTES[d];
+  $('dirNote').innerHTML = `<h2>${n.h}</h2><p>${n.p}</p>` + (n.li.length ? `<ul>${n.li.map(x => `<li>${x}</li>`).join('')}</ul>` : '');
+  render();
+}
+function playAnim() {
+  const t0 = performance.now();
+  const step = (now) => { st.anim = now - t0; render(); if (st.anim < 1400) requestAnimationFrame(step); else { st.anim = null; render(); } };
+  requestAnimationFrame(step);
+}
+function setTheme(t) { st.theme = t; document.querySelectorAll('#themeTabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeOpt === t))); render(); }
+
+// ---- Wiring --------------------------------------------------------------------------
+PLACES.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; $('place').appendChild(o); });
+[0, 1, 2].forEach(i => {
+  const sel = $('slot' + i);
+  [['watch', 'On the watch'], ['weather', 'Weather'], ['plugin', 'Pebble app plugins']].forEach(([src, label]) => {
+    const g = document.createElement('optgroup'); g.label = label;
+    COMPS.filter(c => c.src === src).forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; g.appendChild(o); });
+    sel.appendChild(g);
+  });
+  sel.value = st.slots[i];
+  sel.addEventListener('change', () => { st.slots[i] = sel.value; render(); });
+});
+const SRC_LABEL = { watch: ['watch', 'Watch'], weather: ['web', 'Weather plugin or Open-Meteo'], plugin: ['plugin', 'Plugin'] };
+const tb = document.querySelector('#compTable tbody');
+const f0 = (() => { const save = st.min; st.min = 600; const f = dayFacts(); st.min = save; return f; })();
+COMPS.filter(c => c.id !== 'none').forEach(c => {
+  const v = compValue(c.id, f0); const [cls, lab] = SRC_LABEL[c.src];
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${c.name}</td><td>${c.shows}</td><td><code>${v.v}</code> <span style="color:var(--muted)">${v.l}</span></td><td><span class="src ${cls}">${c.plugin ? c.plugin : lab}</span></td>`;
+  tb.appendChild(tr);
+});
+Object.entries(SWATCH_USE).forEach(([k, use]) => {
+  const d = document.createElement('div'); d.className = 'sw';
+  const name = 'GColor' + k[0].toUpperCase() + k.slice(1);
+  d.innerHTML = `<i style="background:linear-gradient(90deg, ${css(C[k])} 50%, ${css(panel(C[k]))} 50%)" title="Left: the value. Right: on the panel."></i><span>${name}</span><span>${use}</span>`;
+  $('swatches').appendChild(d);
+});
+
+$('date').value = st.date;
+document.querySelectorAll('#dirTabs button').forEach(b => b.addEventListener('click', () => setDir(b.dataset.dir)));
+document.querySelectorAll('#themeTabs button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.themeOpt)));
+$('scrub').addEventListener('input', e => { st.min = +e.target.value; render(); });
+$('place').addEventListener('change', e => { st.place = PLACES.find(p => p.id === e.target.value); if (st.place.date) { st.date = st.place.date; $('date').value = st.date; } render(); });
+$('date').addEventListener('change', e => { if (e.target.value) { st.date = e.target.value; render(); } });
+$('wx').addEventListener('change', e => { st.wx = e.target.value; render(); });
+function setStyle(v) { st.style = v; document.querySelectorAll('#styleTabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.style === v))); render(); }
+document.querySelectorAll('#styleTabs button').forEach((b) => b.addEventListener('click', () => setStyle(b.dataset.style)));
+$('moonOn').addEventListener('change', (e) => { st.moon = e.target.checked; render(); });
+$('playAnim').addEventListener('click', playAnim);
+['panel', 'dim', 'h24', 'grid', 'qv'].forEach(k => $(k).addEventListener('change', e => { st[k] = e.target.checked; render(); }));
+let flickTimer = null;
+$('flick').addEventListener('change', e => {
+  st.flick = e.target.checked; render(); clearTimeout(flickTimer);
+  if (st.flick && !$('flick').dataset.sticky) flickTimer = setTimeout(() => { st.flick = false; $('flick').checked = false; render(); }, 5000);
+});
+$('nowBtn').addEventListener('click', () => { const n = new Date(); st.min = n.getHours() * 60 + n.getMinutes(); $('scrub').value = st.min; render(); });
+let timer = null;
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+$('play').addEventListener('change', e => {
+  clearInterval(timer);
+  if (e.target.checked) timer = setInterval(() => { st.min = (st.min + (reduce ? 30 : 6)) % 1440; $('scrub').value = st.min; render(); }, reduce ? 500 : 40);
+});
+
+// Deep links for screenshots: ?dir=F&theme=sky&min=1000&place=syd&wx=sun&flick=1&qv=1&slots=a,b,c
+const P = new URLSearchParams(location.search);
+if (P.get('place')) { st.place = PLACES.find(p => p.id === P.get('place')) || st.place; $('place').value = st.place.id; if (st.place.date) st.date = st.place.date; }
+if (P.get('date')) st.date = P.get('date');
+$('date').value = st.date;
+if (P.get('min')) { st.min = +P.get('min'); $('scrub').value = st.min; }
+if (P.get('wx')) { st.wx = P.get('wx'); $('wx').value = st.wx; }
+if (P.get('flick')) { st.flick = true; $('flick').checked = true; $('flick').dataset.sticky = '1'; }
+if (P.get('anim')) st.anim = +P.get('anim');
+if (P.get('qv')) { st.qv = true; $('qv').checked = true; }
+if (P.get('slots')) { st.slots = P.get('slots').split(','); st.slots.forEach((s, i) => { $('slot' + i).value = s; }); }
+if (P.get('theme')) st.theme = P.get('theme');
+if (P.get('panel') === '0') { st.panel = false; $('panel').checked = false; }
+if (P.get('dim')) { st.dim = true; $('dim').checked = true; }
+if (P.get('style')) { st.style = P.get('style'); document.querySelectorAll('#styleTabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.style === st.style))); }
+document.querySelectorAll('#themeTabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeOpt === st.theme)));
+setDir(P.get('dir') || 'F');
+Promise.all(Object.values(F).map(f => document.fonts.load(f))).catch(() => {}).then(() => { render(); document.body.dataset.ready = '1'; });
+})();
+</script>

@@ -1,0 +1,94 @@
+{
+  "name": "sunpath",
+  "author": "Sunpath",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app",
+    "watchface",
+    "solar",
+    "weather"
+  ],
+  "private": true,
+  "dependencies": {
+    "@rebble/clay": "^1.1.0"
+  },
+  "pebble": {
+    "displayName": "Sunpath",
+    "uuid": "5ab0ef62-b913-4e6f-840d-e822647e484c",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "capabilities": [
+      "configurable",
+      "health"
+    ],
+    "usesPermissions": [
+      {
+        "name": "Location",
+        "reason": "To draw the sun's path for where you are, and to read your weather",
+        "required": true
+      },
+      {
+        "name": "Internet",
+        "parameters": {
+          "domains": [
+            "api.open-meteo.com"
+          ]
+        },
+        "reason": "To get the weather from Open-Meteo when no weather plugin is available",
+        "required": false
+      },
+      {
+        "name": "Calendar",
+        "reason": "To show your next event, if you put it in a complication",
+        "required": false
+      },
+      {
+        "name": "Health",
+        "reason": "To show steps, distance or heart rate, if you put them in a complication",
+        "required": false
+      }
+    ],
+    "messageKeys": [
+      "REQUEST",
+      "LAT_E4",
+      "LON_E4",
+      "WX_TEMP",
+      "WX_HI",
+      "WX_LO",
+      "WX_FEELS",
+      "WX_CODE",
+      "WX_IS_DAY",
+      "WX_PRECIP",
+      "WX_HUMIDITY",
+      "WX_UV",
+      "WX_WIND",
+      "WX_TIME",
+      "SLOT_VALUE[3]",
+      "SLOT_LABEL[3]",
+      "THEME",
+      "SLOT[3]",
+      "FLICK",
+      "HORIZON_LABELS",
+      "WEATHER_ON",
+      "UNITS",
+      "WX_SOURCE",
+      "LOC_MODE",
+      "LAT_MANUAL",
+      "LON_MANUAL",
+      "MOON",
+      "GLOW_STYLE",
+      "TIME_STYLE",
+      "TIME_FORMAT",
+      "DATE_FORMAT"
+    ],
+    "resources": {
+      "media": []
+    }
+  }
+}
