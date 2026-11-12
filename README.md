@@ -4,7 +4,19 @@ A solar-graph watchface for the **Pebble Time 2**, after the Solar face on the A
 elevation for where you are, drawn across the day, with the sun marking now. Around it are the time, the date,
 the current weather and three complications you choose.
 
-![Sunpath on the emery emulator](design/shots/emulator-sheet.png)
+![Sunpath's cartoon sun on the emery emulator: Solar glow, on white, sunrise on black, and a moonlit night](design/shots/hero.png)
+
+The cartoon sun wakes up when the face appears and when the wrist-flick card closes:
+
+![The wake-up animation](design/shots/wake-up.gif)
+
+The settings page shows a live preview of your choices:
+
+![The settings page with its live preview](design/shots/settings-preview.png)
+
+Earlier looks, before the cartoon sun (still available as the *Solar glow* and *Classic* themes):
+
+![Sunpath's Solar glow theme on the emery emulator](design/shots/emulator-sheet.png)
 
 - **The Solar face's look, in Pebble colours.** Black, a thin grey path and horizon, the date top-left and a
   large thin time top-right. The sun lights the sky around it with a radial glow, clipped at the horizon, that
