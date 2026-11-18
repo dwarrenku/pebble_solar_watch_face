@@ -85,7 +85,9 @@
       "GLOW_STYLE",
       "TIME_STYLE",
       "TIME_FORMAT",
-      "DATE_FORMAT"
+      "DATE_FORMAT",
+      "BT_VIBE",
+      "HOURLY"
     ],
     "resources": {
       "media": []

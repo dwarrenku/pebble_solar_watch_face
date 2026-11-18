@@ -19,21 +19,20 @@ typedef struct {
   GlowStop stops[MAX_STOPS];
 } GlowKey;
 
-// Lighter tints than a backlit screen would need: with the backlight off the panel only shows
-// bright colours well, and dark blues and purples read as murk. The fall to black is kept short.
+// A halo around the sun, not a sky: near-round, about 65 px across each way, so it stays off the
+// header. Colours are bright ones the reflective panel shows well (a warm core out to a blue or
+// violet rim), with the fall to black kept to the last sixth, since dark tints read as murk.
 static const GlowKey SUN_KEYS[] = {
-  { -16, 80, 0.5f, 0.0f, 2, { { 0, 0, 0, 0 }, { 1, 0, 0, 0 } } },
-  { -10, 96, 0.45f, 0.7f, 5, { { 0, 255, 85, 255 }, { 0.3f, 170, 85, 255 }, { 0.62f, 85, 0, 170 },
-                               { 0.82f, 40, 0, 85 }, { 1, 0, 0, 0 } } },
-  { -4, 108, 0.5f, 1.0f, 7, { { 0, 255, 220, 230 }, { 0.12f, 255, 140, 200 }, { 0.32f, 255, 60, 170 },
-                              { 0.55f, 190, 90, 255 }, { 0.78f, 85, 40, 170 }, { 0.9f, 30, 10, 60 }, { 1, 0, 0, 0 } } },
-  { 0, 106, 0.6f, 1.0f, 7, { { 0, 255, 255, 210 }, { 0.08f, 255, 230, 100 }, { 0.22f, 255, 170, 40 },
-                             { 0.4f, 255, 90, 120 }, { 0.62f, 200, 90, 230 }, { 0.82f, 80, 40, 150 }, { 1, 0, 0, 0 } } },
-  { 8, 94, 0.82f, 1.0f, 7, { { 0, 255, 255, 230 }, { 0.07f, 255, 250, 140 }, { 0.2f, 255, 200, 90 },
-                             { 0.38f, 255, 130, 170 }, { 0.6f, 150, 130, 255 }, { 0.82f, 50, 40, 130 }, { 1, 0, 0, 0 } } },
-  { 22, 86, 1.0f, 1.0f, 8, { { 0, 255, 255, 255 }, { 0.06f, 255, 255, 170 }, { 0.16f, 170, 255, 220 },
-                             { 0.32f, 85, 220, 255 }, { 0.52f, 100, 150, 255 }, { 0.75f, 110, 70, 200 },
-                             { 0.9f, 40, 20, 80 }, { 1, 0, 0, 0 } } },
+  { -16, 60, 0.8f, 0.0f, 2, { { 0, 0, 0, 0 }, { 1, 0, 0, 0 } } },
+  { -10, 64, 0.8f, 0.7f, 4, { { 0, 255, 85, 255 }, { 0.4f, 170, 85, 255 }, { 0.8f, 85, 0, 170 }, { 1, 0, 0, 0 } } },
+  { -4, 70, 0.8f, 1.0f, 6, { { 0, 255, 220, 230 }, { 0.15f, 255, 140, 200 }, { 0.38f, 255, 85, 170 },
+                             { 0.62f, 200, 85, 255 }, { 0.86f, 110, 50, 200 }, { 1, 0, 0, 0 } } },
+  { 0, 72, 0.85f, 1.0f, 7, { { 0, 255, 255, 210 }, { 0.12f, 255, 235, 100 }, { 0.3f, 255, 170, 40 },
+                             { 0.5f, 255, 90, 110 }, { 0.72f, 220, 90, 220 }, { 0.88f, 130, 70, 220 }, { 1, 0, 0, 0 } } },
+  { 8, 68, 0.95f, 1.0f, 7, { { 0, 255, 255, 230 }, { 0.1f, 255, 250, 140 }, { 0.28f, 255, 200, 90 },
+                             { 0.48f, 255, 140, 150 }, { 0.68f, 200, 140, 255 }, { 0.86f, 120, 110, 240 }, { 1, 0, 0, 0 } } },
+  { 22, 64, 1.0f, 1.0f, 7, { { 0, 255, 255, 255 }, { 0.1f, 255, 255, 170 }, { 0.26f, 255, 225, 110 },
+                             { 0.44f, 255, 190, 150 }, { 0.62f, 190, 200, 255 }, { 0.84f, 110, 150, 255 }, { 1, 0, 0, 0 } } },
 };
 
 static const GlowKey MOON_KEYS[] = {
@@ -118,7 +117,8 @@ void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, i
   GBitmap *fb = graphics_capture_frame_buffer(ctx);
   if (!fb) return;
   for (int y = y0; y < y1; y++) {
-    const float att = y >= fade_y ? 1.0f : 0.4f + 0.6f * y / fade_y;
+    // Above fade_y the glow dies away quickly, so the time and weather stay on near-black.
+    const float fy = (float)y / fade_y, att = y >= fade_y ? 1.0f : fy * fy * fy;
     float dy2[MAX_SPOTS];
     bool any = false;
     for (int i = 0; i < n; i++) {

@@ -349,6 +349,37 @@ static void flick_card(GContext *ctx, const FaceState *st) {
 
 // --------------------------------------------------------------------------------- the header
 
+// Small alerts under the time, right-aligned at `right`: the phone out of reach, a low battery,
+// Quiet Time. Nothing is drawn when all is well.
+static void status_icons(GContext *ctx, const FaceState *st, int right, int y) {
+  int x = right;
+  const GColor alert = s_graph_w < SCREEN_W ? GColorRed : GColorSunsetOrange;
+  if (!st->connected) {  // a phone with a stroke through it
+    x -= 11;
+    graphics_context_set_stroke_color(ctx, alert);
+    graphics_context_set_stroke_width(ctx, 2);
+    graphics_draw_round_rect(ctx, GRect(x + 1, y, 9, 14), 2);
+    seg(ctx, x - 2, y + 13, x + 12, y + 1, 2, alert);
+    x -= 8;
+  }
+  const BatteryChargeState batt = battery_state_service_peek();
+  if (batt.charge_percent <= 20 && !batt.is_plugged) {  // a battery outline with one bar left
+    x -= 19;
+    graphics_context_set_stroke_color(ctx, alert);
+    graphics_context_set_stroke_width(ctx, 2);
+    graphics_draw_rect(ctx, GRect(x, y + 2, 16, 10));
+    graphics_context_set_fill_color(ctx, alert);
+    graphics_fill_rect(ctx, GRect(x + 16, y + 5, 2, 4), 0, GCornerNone);
+    graphics_fill_rect(ctx, GRect(x + 3, y + 5, 3, 4), 0, GCornerNone);
+    x -= 7;
+  }
+  if (st->quiet) {  // a crescent
+    x -= 13;
+    disc(ctx, x + 6, y + 7, 6, s_soft);
+    disc(ctx, x + 10, y + 4, 5, s_paper);
+  }
+}
+
 // As on the Solar face: the date top-left and a large thin time top-right, with the weather under
 // the date.
 static void header(GContext *ctx, const FaceState *st) {
@@ -371,6 +402,8 @@ static void header(GContext *ctx, const FaceState *st) {
   }
   text(ctx, buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), OFF_G18, EDGE + 1, 3, 80,
        GTextAlignmentLeft, theme == THEME_CLASSIC ? GColorChromeYellow : s_ink);
+
+  status_icons(ctx, st, right, TIME_FONTS[ts].y + (ts <= TIME_LARGE_DIGITAL ? 48 : ts == TIME_SMALL ? 30 : 36));
 
   if (!st->settings->weather_on) return;
   const Weather *w = st->weather;
@@ -455,8 +488,9 @@ static bool weather_fresh(const FaceState *st) {
 static void cartoon_scene(GContext *ctx, const FaceState *st, int now_x, int sun_y) {
   const DayModel *d = st->day;
   const bool light = st->settings->theme == THEME_CARTOON_LIGHT;
-  const bool up = st->alt_now >= -0.833;
-  const int W = s_graph_w, anim = st->anim_ms;
+  const bool sinking = st->anim_ms >= 0 && st->anim_kind == ANIM_SINK;
+  const bool up = st->alt_now >= -0.833 || sinking;
+  const int W = s_graph_w, anim = st->anim_kind == ANIM_WAKE ? st->anim_ms : -1;
   const float rise = cartoon_rise(anim);
   const WxCode code = weather_fresh(st) ? (WxCode)st->weather->code : WX_UNKNOWN;
 
@@ -499,7 +533,12 @@ static void cartoon_scene(GContext *ctx, const FaceState *st, int now_x, int sun
   if (up) {
     // On black the outline and rays are one step deeper than the body, so the edge still shows.
     const GColor warm = st->alt_now > 20 ? GColorChromeYellow : st->alt_now > 6 ? GColorOrange : GColorRed;
-    cartoon_sun(ctx, now_x, sun_y, st->alt_now, light ? s_ink : warm, light ? s_ink : warm, anim);
+    // Its mood: worried while the phone is out of reach, glum in rain or snow.
+    const bool wet = code == WX_LIGHT_RAIN || code == WX_HEAVY_RAIN || code == WX_LIGHT_SNOW ||
+                     code == WX_HEAVY_SNOW || code == WX_RAIN_AND_SNOW;
+    const SunMood mood = !st->connected ? MOOD_WORRIED : wet ? MOOD_SAD : MOOD_HAPPY;
+    const bool blink = st->anim_kind == ANIM_HOP && st->anim_ms > 780 && st->anim_ms < 880;
+    cartoon_sun(ctx, now_x, sun_y, st->alt_now, light ? s_ink : warm, light ? s_ink : warm, anim, mood, blink);
     if (anim < 0 || anim > 700) cartoon_weather(ctx, code, now_x, sun_y, CARTOON_SUN_R, HORIZON_Y, s_ink, s_paper);
   }
 
@@ -531,7 +570,8 @@ void face_draw(GContext *ctx, GRect bounds, GRect unobstructed, const FaceState 
   const bool cartoon = theme_cartoon(s->theme);
   const bool light = s->theme == THEME_CARTOON_LIGHT;
   const bool located = st->has_location && d->valid;
-  const bool sun_up = st->alt_now >= -0.833;
+  const bool sinking = cartoon && st->anim_ms >= 0 && st->anim_kind == ANIM_SINK;
+  const bool sun_up = st->alt_now >= -0.833 || sinking;
 
   s_graph_w = light ? SIDEBAR_GRAPH_W : SCREEN_W;
   s_ink = light ? GColorBlack : GColorWhite;
@@ -546,9 +586,16 @@ void face_draw(GContext *ctx, GRect bounds, GRect unobstructed, const FaceState 
     // it wakes it springs up from behind it.
     const int peek = HORIZON_Y - (CARTOON_SUN_R * 45 + 50) / 100;
     if (sun_y > peek) sun_y = peek;
-    if (st->anim_ms >= 0) {
-      const int from = HORIZON_Y + CARTOON_SUN_R + 2;
+    const int from = HORIZON_Y + CARTOON_SUN_R + 2;  // hidden behind the horizon
+    if (st->anim_ms >= 0 && st->anim_kind == ANIM_WAKE) {
       sun_y = (int)lroundf(from + (sun_y - from) * cartoon_rise(st->anim_ms));
+    } else if (sinking) {
+      // A small lift first, then down behind the horizon.
+      const float p = (float)st->anim_ms / ANIM_SINK_MS;
+      sun_y = (int)lroundf(sun_y + (from - sun_y) * (p * p * 1.6f - p * 0.6f));
+    } else if (st->anim_ms >= 0 && st->anim_kind == ANIM_HOP && st->anim_ms < 700) {
+      const float s = sinf((float)M_PI * (st->anim_ms % 350) / 350.0f);
+      sun_y -= (int)lroundf((st->anim_ms < 350 ? 9 : 5) * s);
     }
   }
 

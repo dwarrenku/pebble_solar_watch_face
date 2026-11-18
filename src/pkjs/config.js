@@ -67,6 +67,14 @@ module.exports = [
         description: 'Its phase and its path while it is up, with a soft glow once the sky is dark.',
       },
       {
+        type: 'toggle', messageKey: 'HOURLY', label: 'Cartoon sun hops on the hour', defaultValue: true,
+        description: 'It also wakes up at sunrise, slips behind the horizon at sunset, frowns in rain or snow, and looks worried when your phone is out of reach.',
+      },
+      {
+        type: 'toggle', messageKey: 'BT_VIBE', label: 'Buzz when the phone disconnects', defaultValue: true,
+        description: 'A double buzz, skipped during Quiet Time. Small icons under the time show a lost phone, a low watch battery (20% or less) and Quiet Time.',
+      },
+      {
         type: 'toggle', messageKey: 'FLICK', label: 'Flick your wrist for sun details', defaultValue: true,
         description: 'For five seconds: first light, sunrise, solar noon and how high the sun gets, sunset, last light, and how much longer or shorter the day is than yesterday.',
       },

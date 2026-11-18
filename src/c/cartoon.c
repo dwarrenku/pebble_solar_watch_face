@@ -61,7 +61,8 @@ static GColor sun_fill(double alt) {
   return alt > 20 ? GColorYellow : alt > 6 ? GColorChromeYellow : GColorOrange;
 }
 
-void cartoon_sun(GContext *ctx, int cx, int cy, double alt, GColor outline, GColor rays, int anim_ms) {
+void cartoon_sun(GContext *ctx, int cx, int cy, double alt, GColor outline, GColor rays, int anim_ms,
+                 SunMood mood, bool blink) {
   const float r = CARTOON_SUN_R;
   const float len = 2 + 4 * clamp01((float)alt / 30.0f);
   for (int k = 0; k < 8; k++) {
@@ -77,7 +78,7 @@ void cartoon_sun(GContext *ctx, int cx, int cy, double alt, GColor outline, GCol
 
   const GColor face = GColorBlack;
   const float ex1 = cx - 0.34f * r, ex2 = cx + 0.3f * r, ey = cy - 0.14f * r;
-  const bool shut = alt < 6 || (anim_ms >= 0 && (anim_ms < 760 || (anim_ms > 1120 && anim_ms < 1200)));
+  const bool shut = blink || (alt < 6 && mood != MOOD_WORRIED) || (anim_ms >= 0 && (anim_ms < 760 || (anim_ms > 1120 && anim_ms < 1200)));
   if (shut) {
     vee(ctx, ex1 - 2.5f, ey, ex1, ey + 1.5f, ex1 + 2.5f, ey, 2, face);
     vee(ctx, ex2 - 2.5f, ey, ex2, ey + 1.5f, ex2 + 2.5f, ey, 2, face);
@@ -85,8 +86,16 @@ void cartoon_sun(GContext *ctx, int cx, int cy, double alt, GColor outline, GCol
     seg(ctx, ex1, ey - 2.5f, ex1, ey + 2.5f, 2, face);
     seg(ctx, ex2, ey - 2.5f, ex2, ey + 2.5f, 2, face);
   }
-  vee(ctx, cx - 0.36f * r, cy + 0.28f * r, cx - 0.03f * r, cy + (alt > 30 ? 0.5f : 0.42f) * r,
-      cx + 0.3f * r, cy + 0.28f * r, 2, face);
+  if (mood == MOOD_WORRIED) {
+    graphics_context_set_stroke_color(ctx, face);
+    graphics_context_set_stroke_width(ctx, 2);
+    graphics_draw_circle(ctx, GPoint(cx, rnd(cy + 0.38f * r)), 2);
+  } else if (mood == MOOD_SAD) {
+    vee(ctx, cx - 0.36f * r, cy + 0.44f * r, cx - 0.03f * r, cy + 0.3f * r, cx + 0.3f * r, cy + 0.44f * r, 2, face);
+  } else {
+    vee(ctx, cx - 0.36f * r, cy + 0.28f * r, cx - 0.03f * r, cy + (alt > 30 ? 0.5f : 0.42f) * r,
+        cx + 0.3f * r, cy + 0.28f * r, 2, face);
+  }
 }
 
 void cartoon_sun_asleep(GContext *ctx, int cx, int cy, GColor ink) {

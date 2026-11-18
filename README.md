@@ -35,6 +35,12 @@ Earlier looks, before the cartoon sun (still available as the *Solar glow* and *
   come out. Clouds, rain and snow are drawn over it in Pebble's icon style. When the face appears, and when the
   wrist-flick card closes, it plays a short wake-up: it springs up from behind the horizon, the rays pop out one
   by one, and it opens its eyes and blinks.
+- **It reacts to the day.** The sun wakes at sunrise, slips behind the horizon at sunset, hops and blinks on
+  the hour, frowns in rain or snow, and looks worried when the phone is out of reach.
+- **Alerts.** A double buzz when the phone disconnects (not during Quiet Time), and small icons under the time
+  for a lost phone, a watch battery at 20% or less, and Quiet Time.
+- **A halo, not a sky.** The Solar glow is a near-round halo about 65 px around the sun, a warm core out to a
+  blue or violet rim, kept clear of the time and weather.
 - **Five themes.** *Solar glow, cartoon sun* (the default), *Cartoon sun on white* (with a strip down the right
   edge in the colour of the time of day; the most readable with the backlight off), *Cartoon sun on black*,
   *Solar glow* with a plain sun, and *Classic*, which draws the path in amber on black.

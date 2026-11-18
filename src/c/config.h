@@ -74,6 +74,8 @@ typedef struct {
   uint8_t time_style;   // TimeStyle
   uint8_t time_format;  // 0 as the watch is set, 1 12-hour, 2 24-hour
   uint8_t date_format;  // DateFormat
+  bool bt_vibe;         // buzz when the phone drops out of reach
+  bool hourly;          // the cartoon sun hops on the hour
 } Settings;
 
 typedef enum {

@@ -8,7 +8,7 @@
 #include "solar.h"
 #include "cartoon.h"
 
-#define SETTINGS_VERSION 6   // 2: themes are Solar glow and Classic; 3: the moon; 4: glow style; 5: cartoon themes; 6: time and date formats
+#define SETTINGS_VERSION 7   // 2: themes are Solar glow and Classic; 3: the moon; 4: glow style; 5: cartoon themes; 6: time and date formats; 7: alerts and the hourly hop
 #define LOCATION_VERSION 1
 #define WEATHER_VERSION 1
 #define SLOT_TEXT_VERSION 1
@@ -33,7 +33,9 @@ static DayModel s_day;
 static bool s_flick;
 static AppTimer *s_flick_timer;
 static AppTimer *s_anim_timer;
-static uint64_t s_anim_start;   // ms; the wake-up runs while s_anim_timer is set
+static uint64_t s_anim_start;   // ms; the animation runs while s_anim_timer is set
+static uint8_t s_anim_kind;     // SunAnim
+static int8_t s_was_up = -1;    // whether the sun was up at the last tick; -1 before the first
 static bool s_tap_subscribed;
 static time_t s_last_request;
 
@@ -49,6 +51,8 @@ static void defaults(void) {
     .weather_on = true,
     .moon = true,
     .glow_style = 0,  // GLOW_SOFT
+    .bt_vibe = true,
+    .hourly = true,
   };
   s_location = (Location) { .version = LOCATION_VERSION };
   s_weather = (Weather) {
@@ -69,7 +73,16 @@ static void load_blob(uint32_t key, void *dst, size_t size, uint8_t version) {
 
 static void load_all(void) {
   defaults();
-  load_blob(PERSIST_SETTINGS, &s_settings, sizeof(s_settings), SETTINGS_VERSION);
+  // Settings only ever grow at the end, so a version 6 blob (shorter) loads over the defaults.
+  const int saved = persist_exists(PERSIST_SETTINGS) ? persist_get_size(PERSIST_SETTINGS) : 0;
+  if (saved > 1 && saved <= (int)sizeof(s_settings)) {
+    Settings old = s_settings;
+    persist_read_data(PERSIST_SETTINGS, &old, saved);
+    if (old.version == 6 || old.version == SETTINGS_VERSION) {
+      s_settings = old;
+      s_settings.version = SETTINGS_VERSION;
+    }
+  }
   load_blob(PERSIST_LOCATION, &s_location, sizeof(s_location), LOCATION_VERSION);
   load_blob(PERSIST_WEATHER, &s_weather, sizeof(s_weather), WEATHER_VERSION);
   load_blob(PERSIST_SLOT_TEXT, &s_slot_text, sizeof(s_slot_text), SLOT_TEXT_VERSION);
@@ -103,6 +116,9 @@ static void canvas_update(Layer *layer, GContext *ctx) {
     .h24 = s_settings.time_format == 1 ? false : s_settings.time_format == 2 ? true : clock_is_24h_style(),
     .flick = s_flick,
     .anim_ms = s_anim_timer ? (int)((now_ms() - s_anim_start) / ANIM_SLOW) : -1,
+    .anim_kind = s_anim_kind,
+    .connected = connection_service_peek_pebble_app_connection(),
+    .quiet = quiet_time_is_active(),
     .has_location = s_location.valid,
   };
   if (s_day.valid) {
@@ -211,6 +227,8 @@ static void inbox_received(DictionaryIterator *it, void *context) {
   if ((t = dict_find(it, MESSAGE_KEY_FLICK))) { s_settings.flick = tuple_int(t) != 0; settings = true; }
   if ((t = dict_find(it, MESSAGE_KEY_HORIZON_LABELS))) { s_settings.horizon_labels = tuple_int(t) != 0; settings = true; }
   if ((t = dict_find(it, MESSAGE_KEY_WEATHER_ON))) { s_settings.weather_on = tuple_int(t) != 0; settings = true; }
+  if ((t = dict_find(it, MESSAGE_KEY_BT_VIBE))) { s_settings.bt_vibe = tuple_int(t) != 0; settings = true; }
+  if ((t = dict_find(it, MESSAGE_KEY_HOURLY))) { s_settings.hourly = tuple_int(t) != 0; settings = true; }
   if ((t = dict_find(it, MESSAGE_KEY_MOON))) { s_settings.moon = tuple_int(t) != 0; settings = true; }
   if ((t = dict_find(it, MESSAGE_KEY_GLOW_STYLE)) && t->type == TUPLE_CSTRING) {
     static const char *STYLES[] = { "soft", "bands", "rays", "ripples", "pixel", "scan" };
@@ -251,12 +269,32 @@ static void outbox_failed(DictionaryIterator *it, AppMessageResult reason, void 
 
 // ---------------------------------------------------------------------------------- services
 
+static void start_anim(SunAnim kind);
+
 static void tick_handler(struct tm *tick_time, TimeUnits changed) {
   const time_t now = time(NULL);
   const bool stale = s_weather.time == 0 || now - s_weather.time > WEATHER_REFRESH_S;
   if (s_settings.weather_on && stale && now - s_last_request > REQUEST_BACKOFF_S) {
     request_data();
   }
+  // The cartoon sun marks the moments of the day: it wakes at sunrise, slips away at sunset, and
+  // hops on the hour while it is up.
+  if (s_day.valid && !s_flick) {
+    SolarDay sd;
+    solar_at((double)now, &sd);
+    const double minute = tick_time->tm_hour * 60 + tick_time->tm_min;
+    const bool up = solar_altitude(minute, s_day.lat, s_day.lon, tick_time->tm_gmtoff / 60, &sd) >= -0.833;
+    if (s_was_up >= 0 && up != (bool)s_was_up) start_anim(up ? ANIM_WAKE : ANIM_SINK);
+    else if (up && tick_time->tm_min == 0 && s_settings.hourly) start_anim(ANIM_HOP);
+    s_was_up = up;
+  }
+  redraw();
+}
+
+// The phone going out of reach: a double buzz (unless Quiet Time is on) and a worried sun.
+static void connection_handler(bool connected) {
+  if (!connected && s_settings.bt_vibe && !quiet_time_is_active()) vibes_double_pulse();
+  if (connected) request_data();
   redraw();
 }
 
@@ -268,7 +306,8 @@ static bool cartoon_theme(void) {
 // The cartoon sun's wake-up: redraw every frame until it has run its course. Frames are timed
 // from the start, so a slow frame skips ahead rather than stretching the animation.
 static void anim_frame(void *data) {
-  if (now_ms() - s_anim_start >= (uint64_t)CARTOON_ANIM_MS * ANIM_SLOW) {
+  static const uint16_t LENGTH[] = { ANIM_WAKE_MS, ANIM_HOP_MS, ANIM_SINK_MS };
+  if (now_ms() - s_anim_start >= (uint64_t)LENGTH[s_anim_kind] * ANIM_SLOW) {
     s_anim_timer = NULL;
   } else {
     s_anim_timer = app_timer_register(ANIM_FRAME_MS, anim_frame, NULL);
@@ -276,8 +315,9 @@ static void anim_frame(void *data) {
   redraw();
 }
 
-static void start_wake_up(void) {
+static void start_anim(SunAnim kind) {
   if (!cartoon_theme()) return;
+  s_anim_kind = kind;
   s_anim_start = now_ms();
   if (s_anim_timer) app_timer_cancel(s_anim_timer);
   s_anim_timer = app_timer_register(ANIM_FRAME_MS, anim_frame, NULL);
@@ -287,7 +327,7 @@ static void start_wake_up(void) {
 static void flick_done(void *data) {
   s_flick_timer = NULL;
   s_flick = false;
-  start_wake_up();  // the sun pops back up as the details card goes
+  start_anim(ANIM_WAKE);  // the sun pops back up as the details card goes
   redraw();
 }
 
@@ -332,7 +372,7 @@ static void window_load(Window *window) {
 }
 
 static void window_appear(Window *window) {
-  start_wake_up();
+  start_anim(ANIM_WAKE);
 }
 
 static void window_unload(Window *window) {
@@ -350,6 +390,7 @@ static void init(void) {
 
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   battery_state_service_subscribe(battery_handler);
+  connection_service_subscribe((ConnectionHandlers) { .pebble_app_connection_handler = connection_handler });
   unobstructed_area_service_subscribe((UnobstructedAreaHandlers) { .change = unobstructed_change }, NULL);
 #if defined(PBL_HEALTH)
   health_service_events_subscribe(health_handler, NULL);
@@ -366,6 +407,7 @@ static void init(void) {
 static void deinit(void) {
   tick_timer_service_unsubscribe();
   battery_state_service_unsubscribe();
+  connection_service_unsubscribe();
   unobstructed_area_service_unsubscribe();
 #if defined(PBL_HEALTH)
   health_service_events_unsubscribe();

@@ -8,7 +8,7 @@
 #include "moon.h"
 
 #define CARTOON_SUN_R 15      // the sun's radius
-#define CARTOON_ANIM_MS 1400  // how long the wake-up runs
+
 
 // The wake-up, after PebbleOS's animations: the body springs up from behind the horizon with a
 // little overshoot, the rays pop out one by one, then the eyes open and blink. `anim_ms` is the time
@@ -18,7 +18,15 @@ float cartoon_rise(int anim_ms);
 
 // The sun with its face: eyes shut near the horizon (and while waking), open once it is up, and a
 // wider smile once it is high. Its rays lengthen as it climbs.
-void cartoon_sun(GContext *ctx, int cx, int cy, double alt, GColor outline, GColor rays, int anim_ms);
+typedef enum {
+  MOOD_HAPPY = 0,
+  MOOD_SAD,      // rain or snow: a frown
+  MOOD_WORRIED,  // the phone is out of reach: a small round mouth
+} SunMood;
+
+// `wake_ms` is the time into the wake-up, or -1; `blink` shuts the eyes for a frame.
+void cartoon_sun(GContext *ctx, int cx, int cy, double alt, GColor outline, GColor rays, int wake_ms,
+                 SunMood mood, bool blink);
 
 // Below the horizon: the sun asleep, in outline, with a small z.
 void cartoon_sun_asleep(GContext *ctx, int cx, int cy, GColor ink);

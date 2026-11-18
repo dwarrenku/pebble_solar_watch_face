@@ -37,9 +37,21 @@ typedef struct {
   MoonState moon;       // the moon now
   bool h24;
   bool flick;           // the wrist-flick card is showing
-  int anim_ms;          // time into the cartoon sun's wake-up, or -1
+  int anim_ms;          // time into the cartoon sun's animation, or -1
+  uint8_t anim_kind;    // SunAnim
+  bool connected;       // the phone is in reach
+  bool quiet;           // Quiet Time is on
   bool has_location;
 } FaceState;
+
+typedef enum {
+  ANIM_WAKE = 0,  // springs up from behind the horizon, rays pop out, eyes open and blink
+  ANIM_HOP,       // two little hops and a blink, on the hour
+  ANIM_SINK,      // slips down behind the horizon at sunset
+} SunAnim;
+#define ANIM_WAKE_MS 1400
+#define ANIM_HOP_MS 1000
+#define ANIM_SINK_MS 700
 
 // Rebuilds `day` if its cache key no longer matches. Returns true if it changed.
 bool day_model_update(DayModel *day, const Location *loc, const struct tm *now, time_t utc);
