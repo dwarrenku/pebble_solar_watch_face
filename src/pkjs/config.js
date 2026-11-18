@@ -96,7 +96,6 @@ module.exports = [
           { label: 'Medium, digital', value: 'medium_digital' },
           { label: 'Small', value: 'small' },
         ],
-        description: 'Extra large gives the time the whole top of the face and puts the date and weather in one row under it.',
       },
       {
         type: 'select', messageKey: 'TIME_FORMAT', label: 'Clock', defaultValue: 'auto',

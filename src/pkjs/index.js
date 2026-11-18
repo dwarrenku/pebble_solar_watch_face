@@ -93,18 +93,17 @@ function clayCustom() {
 
       // Header: the time, the date, the weather.
       var ts = val('TIME_STYLE', 'xl'), xl = ts === 'xl', right = W - 6 + (light ? 2 : 0);
-      var px = xl ? 50 : /^large/.test(ts) ? 41 : /^medium/.test(ts) ? 29 : 27;
+      var px = xl ? 47 : /^large/.test(ts) ? 41 : /^medium/.test(ts) ? 29 : 27;
       var face = /digital/.test(ts) ? 'bold ' + px + 'px "Courier New", monospace'
         : (ts === 'large_light' ? '300 ' : 'bold ') + px + 'px ' + (ts === 'small' ? NARROW : '"Helvetica Neue", Helvetica, Arial, sans-serif');
       txt(clock(NOW), right, xl ? -2 : 1, face, ink, 'right');
       var df = val('DATE_FORMAT', 'dow_day');
       var date = { dow_day: 'WED 11', mon_day: 'NOV 11', day_mon: '11 NOV', m_d: '11/11', d_m: '11/11', none: '' }[df] || '';
-      txt(date, 7, xl ? 48 : 2, 'bold 17px ' + NARROW, th === 'classic' ? '#ffaa00' : ink);
-      var dw = xl ? c.measureText(date).width + (date ? 8 : 0) : 0;
+      txt(date, 7, 2, 'bold 17px ' + NARROW, th === 'classic' ? '#ffaa00' : ink);
       if (val('WEATHER_ON', true) !== false) {
-        c.beginPath(); c.arc(14 + dw, xl ? 57 : 34, 5, 0, 7); c.lineWidth = 2; c.strokeStyle = cartoon ? ink : '#ffaa00'; c.stroke();
-        txt('51°', 29 + dw, xl ? 48 : 23, 'bold ' + (xl ? 17 : 22) + 'px ' + NARROW, ink);
-        if (xl) txt('54° 45°', right, 48, 'bold 17px ' + NARROW, soft, 'right'); else txt('54° 45°', 7, 47, 'bold 17px ' + NARROW, soft);
+        c.beginPath(); c.arc(14, 34, 5, 0, 7); c.lineWidth = 2; c.strokeStyle = cartoon ? ink : '#ffaa00'; c.stroke();
+        txt('51°', 29, 23, 'bold 22px ' + NARROW, ink);
+        txt('54° 45°', 7, 47, 'bold 17px ' + NARROW, soft);
       }
 
       // The path and the horizon.

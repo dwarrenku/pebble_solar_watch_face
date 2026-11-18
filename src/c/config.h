@@ -80,7 +80,7 @@ typedef struct {
 
 typedef enum {
   TIME_LARGE_BOLD = 0, TIME_LARGE_LIGHT, TIME_LARGE_DIGITAL, TIME_MEDIUM_BOLD, TIME_MEDIUM_DIGITAL, TIME_SMALL,
-  TIME_XL,  // the time across the top, the date and weather in one row under it
+  TIME_XL,
   TIME_STYLE_COUNT,
 } TimeStyle;
 
