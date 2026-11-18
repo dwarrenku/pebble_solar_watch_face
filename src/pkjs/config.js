@@ -86,8 +86,9 @@ module.exports = [
     items: [
       { type: 'heading', defaultValue: 'Time and date' },
       {
-        type: 'select', messageKey: 'TIME_STYLE', label: 'Time size and style', defaultValue: 'large_bold',
+        type: 'select', messageKey: 'TIME_STYLE', label: 'Time size and style', defaultValue: 'xl',
         options: [
+          { label: 'Extra large', value: 'xl' },
           { label: 'Large, bold', value: 'large_bold' },
           { label: 'Large, light', value: 'large_light' },
           { label: 'Large, digital', value: 'large_digital' },
@@ -95,6 +96,7 @@ module.exports = [
           { label: 'Medium, digital', value: 'medium_digital' },
           { label: 'Small', value: 'small' },
         ],
+        description: 'Extra large gives the time the whole top of the face and puts the date and weather in one row under it.',
       },
       {
         type: 'select', messageKey: 'TIME_FORMAT', label: 'Clock', defaultValue: 'auto',

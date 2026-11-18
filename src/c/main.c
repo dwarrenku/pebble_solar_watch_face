@@ -51,6 +51,7 @@ static void defaults(void) {
     .weather_on = true,
     .moon = true,
     .glow_style = 0,  // GLOW_SOFT
+    .time_style = TIME_XL,
     .bt_vibe = true,
     .hourly = true,
   };
@@ -244,7 +245,7 @@ static void inbox_received(DictionaryIterator *it, void *context) {
     s_settings.field = 0; \
     for (int i = 0; i < (int)ARRAY_LENGTH(IDS); i++) if (strcmp(t->value->cstring, IDS[i]) == 0) s_settings.field = i; \
     settings = true; }
-  PICK(TIME_STYLE, time_style, "large_bold", "large_light", "large_digital", "medium_bold", "medium_digital", "small")
+  PICK(TIME_STYLE, time_style, "large_bold", "large_light", "large_digital", "medium_bold", "medium_digital", "small", "xl")
   PICK(TIME_FORMAT, time_format, "auto", "12", "24")
   PICK(DATE_FORMAT, date_format, "dow_day", "mon_day", "day_mon", "m_d", "d_m", "none")
   #undef PICK

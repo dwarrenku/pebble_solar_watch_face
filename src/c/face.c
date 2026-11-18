@@ -44,6 +44,7 @@ static const struct { const char *key; int8_t offset, y; } TIME_FONTS[TIME_STYLE
   { FONT_KEY_BITHAM_30_BLACK, 7, 3 },
   { FONT_KEY_LECO_32_BOLD_NUMBERS, 7, 3 },
   { FONT_KEY_GOTHIC_28_BOLD, 7, 1 },
+  { FONT_KEY_ROBOTO_BOLD_SUBSET_49, 12, 2 },
 };
 
 // The theme's colours and width, set at the top of face_draw: ink for text and lines, soft for
@@ -389,8 +390,11 @@ static void header(GContext *ctx, const FaceState *st) {
   format_clock(st->now.tm_hour * 60 + st->now.tm_min, st->h24, buf, sizeof(buf));
   const int right = s_graph_w - EDGE + (s_graph_w < SCREEN_W ? 2 : 0);
   const uint8_t ts = st->settings->time_style < TIME_STYLE_COUNT ? st->settings->time_style : 0;
-  text(ctx, buf, fonts_get_system_font(TIME_FONTS[ts].key), TIME_FONTS[ts].offset, 30, TIME_FONTS[ts].y, right - 30,
-       GTextAlignmentRight, s_ink);
+  // Extra large: the time has the top to itself, and the date and weather share one row under it.
+  const bool xl = ts == TIME_XL;
+  const int row_y = 49;
+  text(ctx, buf, fonts_get_system_font(TIME_FONTS[ts].key), TIME_FONTS[ts].offset, xl ? 0 : 30, TIME_FONTS[ts].y,
+       right - (xl ? 0 : 30), GTextAlignmentRight, s_ink);
   const int day = st->now.tm_mday, mon = st->now.tm_mon;
   switch (st->settings->date_format) {
     case DATE_MON_DAY: snprintf(buf, sizeof(buf), "%s %d", MON[mon], day); break;
@@ -400,33 +404,39 @@ static void header(GContext *ctx, const FaceState *st) {
     case DATE_NONE: buf[0] = '\0'; break;
     default: snprintf(buf, sizeof(buf), "%s %d", DOW[st->now.tm_wday], day); break;
   }
-  text(ctx, buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), OFF_G18, EDGE + 1, 3, 80,
+  GFont f18b = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+  text(ctx, buf, f18b, OFF_G18, EDGE + 1, xl ? row_y : 3, 80,
        GTextAlignmentLeft, theme == THEME_CLASSIC ? GColorChromeYellow : s_ink);
+  const int date_w = buf[0] ? text_size(buf, f18b).w + 8 : 0;
 
-  status_icons(ctx, st, right, TIME_FONTS[ts].y + (ts <= TIME_LARGE_DIGITAL ? 48 : ts == TIME_SMALL ? 30 : 36));
+  if (xl) status_icons(ctx, st, EDGE + 1 + 46, 6);  // in the corner the time leaves free
+  else status_icons(ctx, st, right, TIME_FONTS[ts].y + (ts <= TIME_LARGE_DIGITAL ? 48 : ts == TIME_SMALL ? 30 : 36));
 
   if (!st->settings->weather_on) return;
   const Weather *w = st->weather;
   GFont f24b = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
   const int age = st->utc - w->time;
   if (w->time == 0 || age >= 12 * 60 * 60 || w->temp == WX_NONE) {
-    text(ctx, "--\u00b0", f24b, OFF_G24, EDGE + 1, 24, 70, GTextAlignmentLeft, theme == THEME_CARTOON_LIGHT ? s_soft : GColorDarkGray);
+    text(ctx, "--\u00b0", xl ? f18b : f24b, xl ? OFF_G18 : OFF_G24, EDGE + 1 + (xl ? date_w : 0), xl ? row_y : 24, 70,
+         GTextAlignmentLeft, theme == THEME_CARTOON_LIGHT ? s_soft : GColorDarkGray);
     return;
   }
   // The watch knows where the sun is this minute; the reading's own day flag can be an hour old.
   const bool located = st->has_location && st->day->valid;
   const bool is_day = located ? st->alt_now > -0.833 : (w->is_day >= 0 ? w->is_day == 1 : true);
+  const int ix = xl ? EDGE - 1 + date_w : EDGE - 1, iy = xl ? row_y - 4 : 24;
   if (cartoon) {
-    cartoon_wx_icon(ctx, (WxCode)w->code, EDGE - 1, 24, s_ink, s_paper, is_day);
+    cartoon_wx_icon(ctx, (WxCode)w->code, ix, iy, s_ink, s_paper, is_day);
   } else {
-    weather_icon(ctx, (WxCode)w->code, EDGE - 1, 25, 22, is_day);
+    weather_icon(ctx, (WxCode)w->code, ix, iy + 1, 22, is_day);
   }
   snprintf(buf, sizeof(buf), "%d\u00b0", w->temp);
-  text(ctx, buf, f24b, OFF_G24, EDGE + 23, 24, 60, GTextAlignmentLeft, age < 3 * 60 * 60 ? s_ink : s_soft);
+  text(ctx, buf, xl ? f18b : f24b, xl ? OFF_G18 : OFF_G24, ix + 24, xl ? row_y : 24, 60, GTextAlignmentLeft,
+       age < 3 * 60 * 60 ? s_ink : s_soft);
   if (w->hi != WX_NONE && w->lo != WX_NONE) {
     snprintf(buf, sizeof(buf), "%d\u00b0 %d\u00b0", w->hi, w->lo);
-    text(ctx, buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), OFF_G18, EDGE + 1, 48, 70,
-         GTextAlignmentLeft, s_soft);
+    if (xl) text(ctx, buf, f18b, OFF_G18, right - 70, row_y, 70, GTextAlignmentRight, s_soft);
+    else text(ctx, buf, f18b, OFF_G18, EDGE + 1, 48, 70, GTextAlignmentLeft, s_soft);
   }
 }
 
