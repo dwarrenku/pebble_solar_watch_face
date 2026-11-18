@@ -610,7 +610,7 @@ void face_draw(GContext *ctx, GRect bounds, GRect unobstructed, const FaceState 
 
   // The glows go down first so the time, the paths, the sun and the moon draw over them.
   const GlowStyle style = s->glow_style < GLOW_STYLE_COUNT ? (GlowStyle)s->glow_style : GLOW_SOFT;
-  const float glow_y = cartoon ? (float)sun_y : y_of_f((float)st->alt_now);
+  const float glow_y = y_of_f((float)st->alt_now);  // the true place, not the peeking one
   if (glow && located && !st->flick && style != GLOW_SOFT) {
     const GlowSpot sun_spot = { .x = now_xf, .y = glow_y, .alt = st->alt_now, .strength = 1.0f, .moon = false };
     const GlowSpot moon_spot = { .x = now_xf, .y = (float)moon_y, .alt = st->moon.altitude,

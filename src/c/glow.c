@@ -19,17 +19,21 @@ typedef struct {
   GlowStop stops[MAX_STOPS];
 } GlowKey;
 
-// A halo around the sun, not a sky: near-round, about 65 px across each way, so it stays off the
-// header. Colours are bright ones the reflective panel shows well (a warm core out to a blue or
-// violet rim), with the fall to black kept to the last sixth, since dark tints read as murk.
+// The glow changes shape as the sun comes up and over, as on the Solar face. While the sun is under
+// the horizon it is a low, wide swell lying along the horizon, like a bell curve: a red band on the
+// ground, blue above, peaking gently over where the sun will rise. As the sun climbs the swell
+// draws in and stands up, until it is a round halo about the sun. (radius is the half-width; squash
+// is height / half-width.) Colours are bright ones the reflective panel shows well, with the fall
+// to black kept short, since dark tints read as murk.
 static const GlowKey SUN_KEYS[] = {
-  { -16, 60, 0.8f, 0.0f, 2, { { 0, 0, 0, 0 }, { 1, 0, 0, 0 } } },
-  { -10, 64, 0.8f, 0.7f, 4, { { 0, 255, 85, 255 }, { 0.4f, 170, 85, 255 }, { 0.8f, 85, 0, 170 }, { 1, 0, 0, 0 } } },
-  { -4, 70, 0.8f, 1.0f, 6, { { 0, 255, 220, 230 }, { 0.15f, 255, 140, 200 }, { 0.38f, 255, 85, 170 },
-                             { 0.62f, 200, 85, 255 }, { 0.86f, 110, 50, 200 }, { 1, 0, 0, 0 } } },
-  { 0, 72, 0.85f, 1.0f, 7, { { 0, 255, 255, 210 }, { 0.12f, 255, 235, 100 }, { 0.3f, 255, 170, 40 },
-                             { 0.5f, 255, 90, 110 }, { 0.72f, 220, 90, 220 }, { 0.88f, 130, 70, 220 }, { 1, 0, 0, 0 } } },
-  { 8, 68, 0.95f, 1.0f, 7, { { 0, 255, 255, 230 }, { 0.1f, 255, 250, 140 }, { 0.28f, 255, 200, 90 },
+  { -16, 90, 0.2f, 0.0f, 2, { { 0, 0, 0, 0 }, { 1, 0, 0, 0 } } },
+  { -10, 96, 0.24f, 0.75f, 5, { { 0, 255, 120, 150 }, { 0.3f, 220, 90, 190 }, { 0.6f, 130, 90, 230 },
+                                { 0.85f, 70, 60, 170 }, { 1, 0, 0, 0 } } },
+  { -4, 106, 0.32f, 1.0f, 6, { { 0, 255, 170, 140 }, { 0.2f, 255, 100, 110 }, { 0.42f, 230, 90, 170 },
+                               { 0.66f, 140, 110, 240 }, { 0.87f, 80, 80, 190 }, { 1, 0, 0, 0 } } },
+  { 0, 102, 0.42f, 1.0f, 7, { { 0, 255, 255, 210 }, { 0.1f, 255, 225, 110 }, { 0.26f, 255, 150, 70 },
+                              { 0.46f, 255, 90, 120 }, { 0.68f, 190, 100, 235 }, { 0.87f, 100, 90, 210 }, { 1, 0, 0, 0 } } },
+  { 8, 84, 0.72f, 1.0f, 7, { { 0, 255, 255, 230 }, { 0.1f, 255, 250, 140 }, { 0.28f, 255, 200, 90 },
                              { 0.48f, 255, 140, 150 }, { 0.68f, 200, 140, 255 }, { 0.86f, 120, 110, 240 }, { 1, 0, 0, 0 } } },
   { 22, 64, 1.0f, 1.0f, 7, { { 0, 255, 255, 255 }, { 0.1f, 255, 255, 170 }, { 0.26f, 255, 225, 110 },
                              { 0.44f, 255, 190, 150 }, { 0.62f, 190, 200, 255 }, { 0.84f, 110, 150, 255 }, { 1, 0, 0, 0 } } },
@@ -63,6 +67,8 @@ static inline uint8_t level(float v, float threshold) {
 
 typedef struct {
   float x, y, r2, k_y, ry, radius;
+  float bell;             // 0 a plain ellipse .. 1 a bell curve lying on the horizon
+  float col_k[200];       // per column: 1 / (the glow's height there)^2
   uint8_t lut[LUT_SIZE][3];
 } Prepared;
 
@@ -95,6 +101,16 @@ static bool prepare(const GlowSpot *spot, Prepared *p) {
   p->k_y = 1.0f / (squash * squash);
   p->x = spot->x;
   p->y = spot->y;
+  // The flatter the glow, the more it is a bell curve: full height over the sun, tapering away to
+  // thin tails along the horizon, rather than an ellipse with blunt ends.
+  float bell = spot->moon ? 0 : (0.8f - squash) / 0.45f;
+  p->bell = bell < 0 ? 0 : bell > 1 ? 1 : bell;
+  const float two_sigma2 = 2 * (p->radius * 0.5f) * (p->radius * 0.5f);
+  for (int x = 0; x < 200; x++) {
+    const float dx = x - p->x;
+    const float h = p->ry * (p->bell * expf(-dx * dx / two_sigma2) + (1 - p->bell));
+    p->col_k[x] = h > 0.5f ? 1.0f / (h * h) : 4.0f;
+  }
   return true;
 }
 
@@ -104,11 +120,14 @@ void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, i
   int y0 = horizon_y, y1 = 0, x0 = 10000, x1 = -10000;
   for (int i = 0; i < count && n < MAX_SPOTS; i++) {
     if (!prepare(&spots[i], &prepared[n])) continue;
-    const Prepared *p = &prepared[n++];
+    Prepared *p = &prepared[n++];
+    // A sun under the horizon lights the horizon itself: its swell is centred on the line.
+    if (!spots[i].moon && p->y > horizon_y) p->y = horizon_y;
     if ((int)(p->y - p->ry) < y0) y0 = (int)(p->y - p->ry);
     if ((int)(p->y + p->ry) + 1 > y1) y1 = (int)(p->y + p->ry) + 1;
-    if ((int)(p->x - p->radius) < x0) x0 = (int)(p->x - p->radius);
-    if ((int)(p->x + p->radius) + 1 > x1) x1 = (int)(p->x + p->radius) + 1;
+    const float reach = p->radius * (1 + p->bell);  // a bell's tails run past the ellipse's ends
+    if ((int)(p->x - reach) < x0) x0 = (int)(p->x - reach);
+    if ((int)(p->x + reach) + 1 > x1) x1 = (int)(p->x + reach) + 1;
   }
   if (n == 0) return;
   if (y0 < 0) y0 = 0;
@@ -123,20 +142,25 @@ void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, i
     bool any = false;
     for (int i = 0; i < n; i++) {
       const float dy = y - prepared[i].y;
-      dy2[i] = dy * dy * prepared[i].k_y;
-      any |= dy2[i] < prepared[i].r2;
+      dy2[i] = dy * dy;
+      any |= dy2[i] < prepared[i].ry * prepared[i].ry;
     }
     if (!any) continue;
     GBitmapDataRowInfo row = gbitmap_get_data_row_info(fb, y);
-    const int xs = x0 < row.min_x ? row.min_x : x0;
-    const int xe = x1 > row.max_x + 1 ? row.max_x + 1 : x1;
+    int xs = x0 < row.min_x ? row.min_x : x0;
+    int xe = x1 > row.max_x + 1 ? row.max_x + 1 : x1;
+    if (xs < 0) xs = 0;
+    if (xe > 200) xe = 200;
     for (int x = xs; x < xe; x++) {
       int r = 0, g = 0, b = 0;
       bool hit = false;
       for (int i = 0; i < n; i++) {
-        const float dx = x - prepared[i].x, d2 = dx * dx + dy2[i];
-        if (d2 >= prepared[i].r2) continue;
-        const uint8_t *c = prepared[i].lut[(int)(d2 * (LUT_SIZE - 1) / prepared[i].r2)];
+        // Normalised squared distance: 0 at the centre, 1 at the glow's edge.
+        const Prepared *p = &prepared[i];
+        const float dx = x - p->x;
+        const float u2 = (1 - p->bell) * dx * dx / p->r2 + dy2[i] * p->col_k[x];
+        if (u2 >= 1) continue;
+        const uint8_t *c = p->lut[(int)(u2 * (LUT_SIZE - 1))];
         r += c[0]; g += c[1]; b += c[2];
         hit = true;
       }

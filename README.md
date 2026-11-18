@@ -39,8 +39,9 @@ Earlier looks, before the cartoon sun (still available as the *Solar glow* and *
   the hour, frowns in rain or snow, and looks worried when the phone is out of reach.
 - **Alerts.** A double buzz when the phone disconnects (not during Quiet Time), and small icons under the time
   for a lost phone, a watch battery at 20% or less, and Quiet Time.
-- **A halo, not a sky.** The Solar glow is a near-round halo about 65 px around the sun, a warm core out to a
-  blue or violet rim, kept clear of the time and weather.
+- **A glow that changes shape.** While the sun is under the horizon the glow is a low bell curve lying along
+  the horizon, red on the ground and blue above. As the sun comes up the swell draws in and stands up, until it
+  is a round halo about the sun at height, kept clear of the time and weather.
 - **Five themes.** *Solar glow, cartoon sun* (the default), *Cartoon sun on white* (with a strip down the right
   edge in the colour of the time of day; the most readable with the backlight off), *Cartoon sun on black*,
   *Solar glow* with a plain sun, and *Classic*, which draws the path in amber on black.
