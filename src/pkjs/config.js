@@ -50,8 +50,10 @@ module.exports = [
         description: 'The cartoon sun is drawn like the PebbleOS timeline sun: it peeks over the horizon with its eyes shut at sunrise, wakes up as it climbs, and sleeps under the horizon at night. On white, a strip down the right edge takes the colour of the time of day. Solar glow lights the sky around the sun; Classic draws the path in amber on black.',
       },
       {
-        type: 'select', messageKey: 'NIGHT_THEME', label: 'Theme at night', defaultValue: 'same',
+        type: 'select', messageKey: 'NIGHT_THEME', label: 'Theme at night', defaultValue: 'starry',
         options: [
+          { label: 'Starry night', value: 'starry' },
+          { label: 'Starry night in red (easy on the eyes)', value: 'ember' },
           { label: 'Same as the day', value: 'same' },
           { label: 'Solar glow, cartoon sun', value: 'glow_cartoon' },
           { label: 'Cartoon sun on white', value: 'cartoon_light' },
@@ -59,7 +61,7 @@ module.exports = [
           { label: 'Solar glow', value: 'glow' },
           { label: 'Classic', value: 'classic' },
         ],
-        description: 'Worn from sunset to sunrise. For example, white by day and black at night.',
+        description: 'Worn from sunset to sunrise. Starry night: the sky deepens, stars wheel slowly overhead and twinkle, the moon takes the stage with its real phase, the sun snores under the horizon (and opens one eye just before sunrise), a countdown to sunrise sits on the horizon, and shooting stars cross the sky on the hour and now and then. The red version uses only dim reds, to keep your night vision.',
       },
       {
         type: 'select', messageKey: 'GLOW_STYLE', label: 'Glow style', defaultValue: 'soft',

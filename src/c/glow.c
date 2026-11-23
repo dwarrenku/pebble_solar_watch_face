@@ -114,7 +114,10 @@ static bool prepare(const GlowSpot *spot, Prepared *p) {
   return true;
 }
 
-void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, int fade_y) {
+// The glows, added over an optional sky gradient (top to bottom colours, or NULL for none), then
+// ordered-dithered once into the 64 colours.
+static void draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, int fade_y,
+                 const uint8_t *sky_top, const uint8_t *sky_bottom) {
   static Prepared prepared[MAX_SPOTS];
   int n = 0;
   int y0 = horizon_y, y1 = 0, x0 = 10000, x1 = -10000;
@@ -129,7 +132,9 @@ void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, i
     if ((int)(p->x - reach) < x0) x0 = (int)(p->x - reach);
     if ((int)(p->x + reach) + 1 > x1) x1 = (int)(p->x + reach) + 1;
   }
-  if (n == 0) return;
+  const bool sky = sky_top && sky_bottom;
+  if (n == 0 && !sky) return;
+  if (sky) { y0 = 0; y1 = horizon_y; x0 = 0; x1 = 200; }
   if (y0 < 0) y0 = 0;
   if (y1 > horizon_y) y1 = horizon_y;
 
@@ -138,8 +143,13 @@ void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, i
   for (int y = y0; y < y1; y++) {
     // Above fade_y the glow dies away quickly, so the time and weather stay on near-black.
     const float fy = (float)y / fade_y, att = y >= fade_y ? 1.0f : fy * fy * fy;
+    float base[3] = { 0, 0, 0 };
+    if (sky) {  // darkest at the top, deepening toward the horizon
+      const float t = (float)y / horizon_y, k = t * t;
+      for (int c = 0; c < 3; c++) base[c] = sky_top[c] + (sky_bottom[c] - sky_top[c]) * k;
+    }
     float dy2[MAX_SPOTS];
-    bool any = false;
+    bool any = sky;
     for (int i = 0; i < n; i++) {
       const float dy = y - prepared[i].y;
       dy2[i] = dy * dy;
@@ -164,12 +174,22 @@ void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, i
         r += c[0]; g += c[1]; b += c[2];
         hit = true;
       }
-      if (!hit) continue;
+      if (!hit && !sky) continue;
       const float th = (BAYER4[(y & 3) * 4 + (x & 3)] + 0.5f) / 16.0f;
-      row.data[x] = 0xC0 | level(r * att, th) << 4 | level(g * att, th) << 2 | level(b * att, th);
+      row.data[x] = 0xC0 | level(base[0] + r * att, th) << 4 | level(base[1] + g * att, th) << 2 |
+                    level(base[2] + b * att, th);
     }
   }
   graphics_release_frame_buffer(ctx, fb);
+}
+
+void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, int fade_y) {
+  draw(ctx, spots, count, horizon_y, fade_y, NULL, NULL);
+}
+
+void glow_draw_sky(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, int fade_y,
+                   const uint8_t top[3], const uint8_t bottom[3]) {
+  draw(ctx, spots, count, horizon_y, fade_y, top, bottom);
 }
 
 // ------------------------------------------------------------------------------- flat styles

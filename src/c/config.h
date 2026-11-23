@@ -22,6 +22,8 @@ typedef enum {
   THEME_CARTOON_LIGHT = 2, // after the PebbleOS timeline: white, black linework, the cartoon sun
   THEME_CARTOON_DARK = 3,  // the same on black
   THEME_GLOW_CARTOON = 4,  // the Solar glow with the cartoon sun and moon
+  THEME_STARRY = 5,        // night: a wheeling starfield, the moon as the star, the sun snoring below
+  THEME_EMBER = 6,         // the starry night in dim reds only, easy on eyes in the dark
 } Theme;
 
 typedef enum {

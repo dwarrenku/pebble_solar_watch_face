@@ -98,22 +98,24 @@ void cartoon_sun(GContext *ctx, int cx, int cy, double alt, GColor outline, GCol
   }
 }
 
-void cartoon_sun_asleep(GContext *ctx, int cx, int cy, GColor ink) {
+void cartoon_sun_asleep(GContext *ctx, int cx, int cy, GColor ink, bool peek, bool z) {
   const float r = 10;
   GPoint body[16];
   facets(body, cx, cy, r, 16, 0.87f, -90);
   stroke_poly(ctx, body, 16, 2, ink);
   const float ey = cy - 0.1f * r;
   vee(ctx, cx - 0.34f * r - 2, ey, cx - 0.34f * r, ey + 1.2f, cx - 0.34f * r + 2, ey, 1, ink);
-  vee(ctx, cx + 0.3f * r - 2, ey, cx + 0.3f * r, ey + 1.2f, cx + 0.3f * r + 2, ey, 1, ink);
+  if (peek) seg(ctx, cx + 0.3f * r, ey - 2, cx + 0.3f * r, ey + 1, 2, ink);  // one eye open
+  else vee(ctx, cx + 0.3f * r - 2, ey, cx + 0.3f * r, ey + 1.2f, cx + 0.3f * r + 2, ey, 1, ink);
+  if (!z) return;
   const int zx = cx + r + 8 > RIGHT_LIMIT ? cx - r - 8 : cx + r + 2, zy = cy - r;
   seg(ctx, zx, zy, zx + 5, zy, 1, ink);
   seg(ctx, zx + 5, zy, zx, zy + 5, 1, ink);
   seg(ctx, zx, zy + 5, zx + 5, zy + 5, 1, ink);
 }
 
-void cartoon_moon(GContext *ctx, int cx, int cy, const MoonState *m, double lat, GColor outline, GColor dark) {
-  const int r = 10;
+void cartoon_moon(GContext *ctx, int cx, int cy, int r, const MoonState *m, double lat, GColor outline,
+                  GColor lit_color, GColor dark) {
   const float ri = r * 0.924f;  // the octagon's inradius
   const float a = 1.0f - 2.0f * m->illuminated;
   const bool lit_right = m->waxing != (lat < 0);
@@ -123,7 +125,7 @@ void cartoon_moon(GContext *ctx, int cx, int cy, const MoonState *m, double lat,
       if (abs(px) > ri || abs(py) > ri || (abs(px) + abs(py)) > ri * 1.4142f) continue;
       const float nx = (float)px / r;
       const bool lit = lit_right ? nx > a * edge : nx < -a * edge;
-      graphics_context_set_stroke_color(ctx, lit ? GColorPastelYellow : dark);
+      graphics_context_set_stroke_color(ctx, lit ? lit_color : dark);
       graphics_draw_pixel(ctx, GPoint(cx + px, cy + py));
     }
   }
@@ -131,9 +133,13 @@ void cartoon_moon(GContext *ctx, int cx, int cy, const MoonState *m, double lat,
   facets(oct, cx, cy, r, 8, 1, 22.5f);
   stroke_poly(ctx, oct, 8, 2, outline);
   if (m->illuminated > 0.6f) {  // a ^ eye each side and a little smile, as on the PebbleOS moon
-    vee(ctx, cx - 5, cy - 1, cx - 3, cy - 3.5f, cx - 1, cy - 1, 2, GColorBlack);
-    vee(ctx, cx + 1.5f, cy - 1, cx + 3.5f, cy - 3.5f, cx + 5.5f, cy - 1, 2, GColorBlack);
-    vee(ctx, cx - 3, cy + 3, cx + 0.5f, cy + 5, cx + 4, cy + 3, 2, GColorBlack);
+    const float k = r / 10.0f;
+    vee(ctx, cx - 5 * k, cy - 1 * k, cx - 3 * k, cy - 3.5f * k, cx - 1 * k, cy - 1 * k, 2, GColorBlack);
+    vee(ctx, cx + 1.5f * k, cy - 1 * k, cx + 3.5f * k, cy - 3.5f * k, cx + 5.5f * k, cy - 1 * k, 2, GColorBlack);
+    vee(ctx, cx - 3 * k, cy + 3 * k, cx + 0.5f * k, cy + 5 * k, cx + 4 * k, cy + 3 * k, 2, GColorBlack);
+  } else if (r > 10) {  // a crescent or half moon, big enough for a sleepy eye on its lit side
+    const float ex = cx + (m->waxing != (lat < 0) ? 0.45f : -0.45f) * r;
+    vee(ctx, ex - 2.5f, cy - 1, ex, cy + 0.5f, ex + 2.5f, cy - 1, 2, GColorBlack);
   }
 }
 

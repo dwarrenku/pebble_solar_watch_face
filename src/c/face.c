@@ -54,8 +54,9 @@ static const struct { const char *key; int8_t offset, y; } TIME_FONTS[TIME_STYLE
 static GColor s_ink, s_soft, s_paper;
 static int s_graph_w = SCREEN_W;
 
+static bool theme_night(uint8_t t) { return t == THEME_STARRY || t == THEME_EMBER; }
 static bool theme_cartoon(uint8_t t) {
-  return t == THEME_CARTOON_LIGHT || t == THEME_CARTOON_DARK || t == THEME_GLOW_CARTOON;
+  return t == THEME_CARTOON_LIGHT || t == THEME_CARTOON_DARK || t == THEME_GLOW_CARTOON || theme_night(t);
 }
 static bool theme_glow(uint8_t t) { return t == THEME_GLOW || t == THEME_GLOW_CARTOON; }
 
@@ -535,7 +536,7 @@ static void cartoon_scene(GContext *ctx, const FaceState *st, int now_x, int sun
   if (!up && anim >= 0) moon_y = (int)lroundf((HORIZON_Y + 12) + (moon_y - (HORIZON_Y + 12)) * rise);
   const bool touching = abs(moon_y - sun_y) < 30;
   if (moon_shown(st) && !(touching && up)) {
-    cartoon_moon(ctx, now_x, moon_y, &st->moon, d->lat, s_ink, light ? GColorLightGray : GColorDarkGray);
+    cartoon_moon(ctx, now_x, moon_y, 10, &st->moon, d->lat, s_ink, GColorPastelYellow, light ? GColorLightGray : GColorDarkGray);
     if (!up) cartoon_weather(ctx, code, now_x, moon_y, 10, HORIZON_Y, s_ink, s_paper);
   }
   if (up) {
@@ -564,9 +565,185 @@ static void cartoon_scene(GContext *ctx, const FaceState *st, int now_x, int sun
   }
   // Asleep, the sun lies wholly under the horizon (just after sunset its true place is on the line).
   const int sleep_y = sun_y < HORIZON_Y + 13 ? HORIZON_Y + 13 : sun_y > 174 ? 174 : sun_y;
-  if (!up) cartoon_sun_asleep(ctx, now_x, sleep_y, s_soft);
+  if (!up) cartoon_sun_asleep(ctx, now_x, sleep_y, s_soft, false, true);
   seg(ctx, 2, HORIZON_Y, W - 2, HORIZON_Y, 3, s_ink);
   horizon_labels(ctx, st, now_x, up ? sun_y : sleep_y, up ? CARTOON_SUN_R + 4 : 12, false);
+}
+
+// ------------------------------------------------------------------------------- the night scene
+// From sunset to sunrise (as the night theme): the sky deepens toward the horizon, a starfield
+// wheels slowly overhead at the real sidereal rate and twinkles, the moon takes the stage as a big
+// character with its real phase, the sun sleeps on its path under the horizon with z's floating up
+// (and opens one eye in the last half hour), and now and then a shooting star crosses the sky.
+
+#define STAR_COUNT 220
+#define POLE_X 100     // the stars turn about a point above the screen
+#define POLE_Y (-130)
+typedef struct { uint16_t a; uint16_t r; uint8_t b; } Star;  // angle (of 65536), radius, brightness 0..2
+static Star s_stars[STAR_COUNT];
+static bool s_stars_ready;
+
+static uint32_t lcg(uint32_t *seed) { *seed = *seed * 1664525u + 1013904223u; return *seed >> 8; }
+
+static void stars_init(void) {
+  uint32_t seed = 0x5eed5u;
+  for (int i = 0; i < STAR_COUNT; i++) {
+    s_stars[i].a = lcg(&seed) & 0xFFFF;
+    s_stars[i].r = 150 + lcg(&seed) % 190;
+    const uint32_t v = lcg(&seed) % 100;
+    s_stars[i].b = v < 62 ? 0 : v < 90 ? 1 : 2;
+  }
+  s_stars_ready = true;
+}
+
+typedef struct { GColor bright, mid, dim, sun, moon_lit, moon_dark, line; } NightPalette;
+
+static NightPalette night_palette(bool ember) {
+  if (ember) {
+    return (NightPalette) { GColorSunsetOrange, GColorRed, GColorDarkCandyAppleRed, GColorRed,
+                            GColorSunsetOrange, GColorBulgarianRose, GColorDarkCandyAppleRed };
+  }
+  return (NightPalette) { GColorWhite, GColorLightGray, GColorDarkGray, GColorChromeYellow,
+                          GColorPastelYellow, GColorOxfordBlue, GColorLightGray };
+}
+
+// The sky, the twilight swell and the moon's glow, then the stars: drawn before the header.
+static void night_sky(GContext *ctx, const FaceState *st, float now_xf, int moon_y) {
+  const bool ember = st->settings->theme == THEME_EMBER;
+  const double alt = st->alt_now;
+  float k = (float)((alt + 18) / 17.2);  // 0 in full night, 1 at sunset or sunrise
+  k = k < 0 ? 0 : k > 1 ? 1 : k * k;
+  uint8_t top[3], bottom[3];
+  if (ember) {
+    const uint8_t t[3] = { (uint8_t)(10 * k), 0, 0 }, b[3] = { (uint8_t)(70 + 90 * k), (uint8_t)(30 * k), 0 };
+    memcpy(top, t, 3); memcpy(bottom, b, 3);
+  } else {
+    const uint8_t t[3] = { 0, 0, (uint8_t)(25 * k) }, b[3] = { (uint8_t)(110 * k), (uint8_t)(50 * k), (uint8_t)(70 + 100 * k) };
+    memcpy(top, t, 3); memcpy(bottom, b, 3);
+  }
+  GlowSpot spots[2];
+  int n = 0;
+  if (!ember) {
+    if (alt > -12) spots[n++] = (GlowSpot) { .x = now_xf, .y = y_of_f((float)alt), .alt = alt, .strength = 0.9f, .moon = false };
+    if (moon_y >= 0) spots[n++] = (GlowSpot) { .x = now_xf < 17 ? 17 : now_xf > s_graph_w - 17 ? s_graph_w - 17 : now_xf, .y = (float)moon_y, .alt = st->moon.altitude,
+                                               .strength = powf(st->moon.illuminated, 0.8f), .moon = true };
+  }
+  glow_draw_sky(ctx, spots, n, HORIZON_Y, GRAPH_TOP, top, bottom);
+
+  if (!s_stars_ready) stars_init();
+  const NightPalette pal = night_palette(ember);
+  // One turn per sidereal day; left to right, the way the sun goes on the graph.
+  const int32_t spin = (int32_t)((uint64_t)(st->utc % 86164) * TRIG_MAX_ANGLE / 86164);
+  const uint32_t minute = st->now.tm_hour * 60 + st->now.tm_min;
+  for (int i = 0; i < STAR_COUNT; i++) {
+    const int32_t a = (s_stars[i].a - spin) & 0xFFFF;
+    const int x = POLE_X + s_stars[i].r * cos_lookup(a) / TRIG_MAX_RATIO;
+    const int y = POLE_Y + s_stars[i].r * sin_lookup(a) / TRIG_MAX_RATIO;
+    if (x < 2 || x >= s_graph_w - 2 || y < 2 || y > HORIZON_Y - 4) continue;
+    // About one star in eight changes brightness each minute: a slow twinkle.
+    uint32_t h = (uint32_t)i * 2654435761u ^ minute * 40503u;
+    h ^= h >> 13;
+    int b = s_stars[i].b;
+    if ((h & 7) == 0) b = b > 0 ? b - 1 : 1;
+    if (b == 2) {
+      graphics_context_set_stroke_color(ctx, pal.bright);
+      graphics_context_set_stroke_width(ctx, 1);
+      graphics_draw_line(ctx, GPoint(x - 2, y), GPoint(x + 2, y));
+      graphics_draw_line(ctx, GPoint(x, y - 2), GPoint(x, y + 2));
+    } else {
+      graphics_context_set_stroke_color(ctx, b ? pal.bright : pal.mid);
+      graphics_draw_pixel(ctx, GPoint(x, y));
+    }
+  }
+}
+
+static void little_z(GContext *ctx, int x, int y, int s, GColor c) {
+  seg(ctx, x, y, x + s, y, 1, c);
+  seg(ctx, x + s, y, x, y + s, 1, c);
+  seg(ctx, x, y + s, x + s, y + s, 1, c);
+}
+
+// The rest, over the header: the moon, the paths, the sleeping sun, the horizon, a shooting star.
+static void night_scene(GContext *ctx, const FaceState *st, int now_x, int sun_y, int moon_y) {
+  const DayModel *d = st->day;
+  const bool ember = st->settings->theme == THEME_EMBER;
+  const NightPalette pal = night_palette(ember);
+  const int W = s_graph_w;
+  const WxCode code = weather_fresh(st) ? (WxCode)st->weather->code : WX_UNKNOWN;
+
+  // Tomorrow's path in faint dots; the moon's path in small ones.
+  graphics_context_set_fill_color(ctx, pal.dim);
+  for (int x = 0; x < W; x += 4) {
+    const float al = col_alt(d->alt, x);
+    if (al >= 0) graphics_fill_rect(ctx, GRect(x, y_of(al) - 1, 2, 2), 0, GCornerNone);
+  }
+  if (st->settings->moon) {
+    graphics_context_set_fill_color(ctx, pal.mid);
+    for (int x = 3; x < W; x += 6) {
+      const float ma = col_alt(d->moon_alt, x);
+      if (ma >= 0) graphics_fill_rect(ctx, GRect(x - 1, y_of(ma) - 1, 2, 2), 0, GCornerNone);
+    }
+  }
+
+  // The moon, the star of the night.
+  if (moon_y >= 0) {  // kept whole on screen near the ends of the night
+    const int mx = now_x < 17 ? 17 : now_x > W - 17 ? W - 17 : now_x;
+    cartoon_moon(ctx, mx, moon_y, 14, &st->moon, d->lat, pal.bright, pal.moon_lit, pal.moon_dark);
+    cartoon_weather(ctx, code, mx > W - 30 ? W - 30 : mx, moon_y, 14, HORIZON_Y, pal.bright, GColorBlack);
+  }
+
+  // A shooting star: its line and speed picked by the minute, so each one is different.
+  if (st->anim_kind == ANIM_METEOR && st->anim_ms >= 0) {
+    uint32_t seed = st->now.tm_hour * 60 + st->now.tm_min + 7;
+    const bool rightward = lcg(&seed) & 1;
+    const float x0 = rightward ? 10 + lcg(&seed) % 70 : W - 10 - lcg(&seed) % 70, y0 = 6 + lcg(&seed) % 34;
+    const float dx = rightward ? 0.9f : -0.9f, dy = 0.42f, len = 105;
+    const float p = (float)st->anim_ms / ANIM_METEOR_MS, head = len * p;
+    const float fade = p < 0.75f ? 1 : 1 - (p - 0.75f) / 0.25f, tail = 30 * fade;
+    #define AT(t) x0 + dx * (t), y0 + dy * (t)
+    seg(ctx, AT(head - tail), AT(head - tail * 0.55f), 1, pal.dim);
+    seg(ctx, AT(head - tail * 0.55f), AT(head - tail * 0.2f), 1, pal.mid);
+    if (fade > 0.3f) seg(ctx, AT(head - tail * 0.2f), AT(head), 2, pal.bright);
+    #undef AT
+  }
+
+  // Under the horizon: cut off anything that hangs below it, then tonight's path and the sun asleep.
+  int cx0 = now_x - 32, cx1 = now_x + 32;
+  if (cx0 < 0) cx0 = 0;
+  if (cx1 > W) cx1 = W;
+  graphics_context_set_fill_color(ctx, s_paper);
+  graphics_fill_rect(ctx, GRect(cx0, HORIZON_Y + 1, cx1 - cx0, 34), 0, GCornerNone);
+  graphics_context_set_fill_color(ctx, pal.mid);
+  for (int x = 0; x < W; x += 5) {
+    const float al = col_alt(d->alt, x);
+    if (al < 0) graphics_fill_rect(ctx, GRect(x - 1, y_of(al) - 1, 2, 2), 0, GCornerNone);
+  }
+  const int sleep_y = sun_y < HORIZON_Y + 13 ? HORIZON_Y + 13 : sun_y > 174 ? 174 : sun_y;
+  const bool peek = st->morning && st->alt_now > -6;  // nearly time: one eye open
+  const int sx = now_x < 12 ? 12 : now_x > W - 12 ? W - 12 : now_x;  // kept whole on screen
+  cartoon_sun_asleep(ctx, sx, sleep_y, pal.sun, peek, false);
+  if (!peek) {  // z's drifting up from it, a different one fading each minute
+    const bool left = sx + 30 > W;
+    for (int i = 0; i < 3; i++) {
+      if ((st->now.tm_min + i) % 3 == 2 && i < 2) continue;
+      const int zx = left ? sx - 14 - i * 6 - (3 + i) : sx + 13 + i * 6, zy = sleep_y - 8 - i * 7;
+      little_z(ctx, zx, zy, 3 + i, i == 2 ? pal.dim : pal.mid);
+    }
+  }
+  seg(ctx, 2, HORIZON_Y, W - 2, HORIZON_Y, 2, pal.line);
+
+  // How long until morning, on the side away from the sun.
+  if (d->has_rise) {
+    const double now = st->now.tm_hour * 60 + st->now.tm_min;
+    double wait = now < d->rise ? d->rise - now : (d->has_rise_tomorrow ? d->rise_tomorrow : d->rise) + 1440 - now;
+    const int mins = (int)lround(wait);
+    char buf[32];
+    if (mins >= 60) snprintf(buf, sizeof(buf), "SUNRISE IN %dH %02dM", mins / 60, mins % 60);
+    else snprintf(buf, sizeof(buf), "SUNRISE IN %dM", mins);
+    const bool on_left = now_x > W / 2;
+    text(ctx, buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD), OFF_G14, on_left ? 6 : W - 6 - 130, HORIZON_Y + 4,
+         130, on_left ? GTextAlignmentLeft : GTextAlignmentRight, s_soft);
+  }
 }
 
 // ---------------------------------------------------------------------------------- the face
@@ -582,8 +759,9 @@ void face_draw(GContext *ctx, GRect bounds, GRect unobstructed, const FaceState 
   const bool sun_up = st->alt_now >= -0.833 || sinking;
 
   s_graph_w = light ? SIDEBAR_GRAPH_W : SCREEN_W;
-  s_ink = light ? GColorBlack : GColorWhite;
-  s_soft = light ? GColorDarkGray : GColorLightGray;
+  const bool ember = s->theme == THEME_EMBER, night = theme_night(s->theme);
+  s_ink = light ? GColorBlack : ember ? GColorSunsetOrange : GColorWhite;
+  s_soft = light ? GColorDarkGray : ember ? GColorDarkCandyAppleRed : GColorLightGray;
   s_paper = light ? GColorWhite : GColorBlack;
 
   const float now_xf = (float)(st->minute * s_graph_w / 1440);
@@ -634,6 +812,14 @@ void face_draw(GContext *ctx, GRect bounds, GRect unobstructed, const FaceState 
   }
   if (light) sidebar(ctx, located ? st->alt_now : 0, located ? sun_y : HORIZON_Y);
 
+  // The night scene's moon: up, lit enough to see, peeking over the horizon as it rises.
+  int night_moon_y = -1;
+  if (night && located && st->settings->moon && st->moon.altitude >= 0 && st->moon.illuminated > 0.04f) {
+    night_moon_y = y_of((float)st->moon.altitude);
+    if (night_moon_y > HORIZON_Y - 7) night_moon_y = HORIZON_Y - 7;
+  }
+  if (night && located && !st->flick) night_sky(ctx, st, now_xf, night_moon_y);
+
   // Over a flat glow the header text is outlined; the soft glow fades under it instead.
   s_outline = glow && located && !st->flick && style != GLOW_SOFT;
   header(ctx, st);
@@ -645,6 +831,8 @@ void face_draw(GContext *ctx, GRect bounds, GRect unobstructed, const FaceState 
          HORIZON_Y + 4, s_graph_w, GTextAlignmentCenter, s_soft);
   } else if (st->flick) {
     flick_card(ctx, st);
+  } else if (night) {
+    night_scene(ctx, st, now_x, sun_y, night_moon_y);
   } else if (cartoon) {
     cartoon_scene(ctx, st, now_x, sun_y);
   } else {

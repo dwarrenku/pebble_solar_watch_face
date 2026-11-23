@@ -54,6 +54,7 @@ static void defaults(void) {
     .time_style = TIME_XL,
     .bt_vibe = true,
     .hourly = true,
+    .night_theme = THEME_STARRY + 1,
   };
   s_location = (Location) { .version = LOCATION_VERSION };
   s_weather = (Weather) {
@@ -137,6 +138,7 @@ static void canvas_update(Layer *layer, GContext *ctx) {
     .anim_kind = s_anim_kind,
     .connected = connection_service_peek_pebble_app_connection(),
     .quiet = quiet_time_is_active(),
+    .morning = s_day.valid && local.tm_hour * 60 + local.tm_min < s_day.noon,
     .has_location = s_location.valid,
   };
   if (s_day.valid) {
@@ -263,7 +265,7 @@ static void inbox_received(DictionaryIterator *it, void *context) {
     for (int i = 0; i < (int)ARRAY_LENGTH(IDS); i++) if (strcmp(t->value->cstring, IDS[i]) == 0) s_settings.field = i; \
     settings = true; }
   PICK(TIME_STYLE, time_style, "large_bold", "large_light", "large_digital", "medium_bold", "medium_digital", "small", "xl")
-  PICK(NIGHT_THEME, night_theme, "same", "glow", "classic", "cartoon_light", "cartoon_dark", "glow_cartoon")
+  PICK(NIGHT_THEME, night_theme, "same", "glow", "classic", "cartoon_light", "cartoon_dark", "glow_cartoon", "starry", "ember")
   PICK(TIME_FORMAT, time_format, "auto", "12", "24")
   PICK(DATE_FORMAT, date_format, "dow_day", "mon_day", "day_mon", "m_d", "d_m", "none")
   #undef PICK
@@ -289,6 +291,7 @@ static void outbox_failed(DictionaryIterator *it, AppMessageResult reason, void 
 // ---------------------------------------------------------------------------------- services
 
 static void start_anim(SunAnim kind);
+static bool sun_up_now(void);
 
 static void tick_handler(struct tm *tick_time, TimeUnits changed) {
   const time_t now = time(NULL);
@@ -304,7 +307,11 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
     const double minute = tick_time->tm_hour * 60 + tick_time->tm_min;
     const bool up = solar_altitude(minute, s_day.lat, s_day.lon, tick_time->tm_gmtoff / 60, &sd) >= -0.833;
     if (s_was_up >= 0 && up != (bool)s_was_up) start_anim(up ? ANIM_WAKE : ANIM_SINK);
-    else if (up && tick_time->tm_min == 0 && s_settings.hourly) start_anim(ANIM_HOP);
+    else if (tick_time->tm_min == 0 && s_settings.hourly) start_anim(up ? ANIM_HOP : ANIM_METEOR);
+    else if (!up && s_settings.hourly) {  // and now and then, a shooting star
+      uint32_t h = (uint32_t)(now / 60) * 2654435761u;
+      if (((h >> 16) % 12) == 0) start_anim(ANIM_METEOR);
+    }
     s_was_up = up;
   }
   redraw();
@@ -319,7 +326,8 @@ static void connection_handler(bool connected) {
 
 // Whether the day or night theme has the cartoon sun (a theme without one ignores the animation).
 static bool is_cartoon(uint8_t t) {
-  return t == THEME_CARTOON_LIGHT || t == THEME_CARTOON_DARK || t == THEME_GLOW_CARTOON;
+  return t == THEME_CARTOON_LIGHT || t == THEME_CARTOON_DARK || t == THEME_GLOW_CARTOON ||
+         t == THEME_STARRY || t == THEME_EMBER;
 }
 static bool cartoon_theme(void) {
   return is_cartoon(s_settings.theme) || (s_settings.night_theme > 0 && is_cartoon(s_settings.night_theme - 1));
@@ -328,7 +336,7 @@ static bool cartoon_theme(void) {
 // The cartoon sun's wake-up: redraw every frame until it has run its course. Frames are timed
 // from the start, so a slow frame skips ahead rather than stretching the animation.
 static void anim_frame(void *data) {
-  static const uint16_t LENGTH[] = { ANIM_WAKE_MS, ANIM_HOP_MS, ANIM_SINK_MS };
+  static const uint16_t LENGTH[] = { ANIM_WAKE_MS, ANIM_HOP_MS, ANIM_SINK_MS, ANIM_METEOR_MS };
   if (now_ms() - s_anim_start >= (uint64_t)LENGTH[s_anim_kind] * ANIM_SLOW) {
     s_anim_timer = NULL;
   } else {
@@ -349,7 +357,7 @@ static void start_anim(SunAnim kind) {
 static void flick_done(void *data) {
   s_flick_timer = NULL;
   s_flick = false;
-  start_anim(ANIM_WAKE);  // the sun pops back up as the details card goes
+  start_anim(sun_up_now() ? ANIM_WAKE : ANIM_METEOR);  // the sun pops back up as the card goes
   redraw();
 }
 
@@ -393,8 +401,19 @@ static void window_load(Window *window) {
   layer_add_child(root, s_canvas);
 }
 
+// Whether the sun is up now (true if the day isn't known yet).
+static bool sun_up_now(void) {
+  const time_t now = time(NULL);
+  struct tm local = *localtime(&now);
+  day_model_update(&s_day, &s_location, &local, now);
+  if (!s_day.valid) return true;
+  SolarDay sd;
+  solar_at((double)now, &sd);
+  return solar_altitude(local.tm_hour * 60 + local.tm_min, s_day.lat, s_day.lon, local.tm_gmtoff / 60, &sd) >= -0.833;
+}
+
 static void window_appear(Window *window) {
-  start_anim(ANIM_WAKE);
+  start_anim(sun_up_now() ? ANIM_WAKE : ANIM_METEOR);  // by day the sun wakes; at night, a shooting star
 }
 
 static void window_unload(Window *window) {

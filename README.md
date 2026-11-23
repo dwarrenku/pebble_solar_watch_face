@@ -42,8 +42,15 @@ Earlier looks, before the cartoon sun (still available as the *Solar glow* and *
 - **A glow that changes shape.** While the sun is under the horizon the glow is a low bell curve lying along
   the horizon, red on the ground and blue above. As the sun comes up the swell draws in and stands up, until it
   is a round halo about the sun at height, kept clear of the time and weather.
-- **A theme for the night.** Optionally a different theme from sunset to sunrise, such as white by day and
-  black at night.
+- **Starry night.** From sunset to sunrise the face becomes a night scene: the sky deepens toward the
+  horizon, a starfield wheels slowly overhead at the real sidereal rate and twinkles, the moon takes the stage
+  as a big character with its real phase and glow, and the sun sleeps on its path under the horizon with z's
+  drifting up, opening one eye in the last half hour before sunrise. A countdown to sunrise sits on the
+  horizon, and shooting stars cross the sky on the hour and now and then. There is a red version for keeping
+  your night vision, or any day theme can be worn at night instead.
+
+![Starry night: dusk, a moonlit midnight, a moonless night, just before sunrise, the red version, and a cloudy night](design/shots/starry-night.png)
+
 - **Five themes.** *Solar glow, cartoon sun* (the default), *Cartoon sun on white* (with a strip down the right
   edge in the colour of the time of day; the most readable with the backlight off), *Cartoon sun on black*,
   *Solar glow* with a plain sun, and *Classic*, which draws the path in amber on black.

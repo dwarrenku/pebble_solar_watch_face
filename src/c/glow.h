@@ -19,6 +19,10 @@ typedef struct {
 // there stays legible.
 void glow_draw(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, int fade_y);
 
+// The same over a sky that darkens from `top` (row 0) to `bottom` (the horizon), as 0..255 RGB.
+void glow_draw_sky(GContext *ctx, const GlowSpot *spots, int count, int horizon_y, int fade_y,
+                   const uint8_t top[3], const uint8_t bottom[3]);
+
 // Glow styles. Soft is the dithered gradient above; the others are flat, in Pebble's design language:
 // a few flat palette colours with crisp edges, which also hold up best with the backlight off.
 typedef enum {

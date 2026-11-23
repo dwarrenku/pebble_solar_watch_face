@@ -29,11 +29,15 @@ void cartoon_sun(GContext *ctx, int cx, int cy, double alt, GColor outline, GCol
                  SunMood mood, bool blink);
 
 // Below the horizon: the sun asleep, in outline, with a small z.
-void cartoon_sun_asleep(GContext *ctx, int cx, int cy, GColor ink);
+// `peek` opens one eye (just before sunrise); `z` adds the little z beside it.
+void cartoon_sun_asleep(GContext *ctx, int cx, int cy, GColor ink, bool peek, bool z);
 
 // The faceted moon, lit with its real phase (mirrored south of the equator); a face once it is
 // mostly lit.
-void cartoon_moon(GContext *ctx, int cx, int cy, const MoonState *m, double lat, GColor outline, GColor dark);
+// `r` is its radius (10 normally; larger when it is the star of the night scene); `lit` and `dark`
+// colour its two sides.
+void cartoon_moon(GContext *ctx, int cx, int cy, int r, const MoonState *m, double lat, GColor outline,
+                  GColor lit, GColor dark);
 
 // Pebble's chamfered clouds over a body at (sx, sy), with rain dashes or snow pluses under them,
 // kept above the horizon.

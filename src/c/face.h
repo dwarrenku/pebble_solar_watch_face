@@ -41,6 +41,7 @@ typedef struct {
   uint8_t anim_kind;    // SunAnim
   bool connected;       // the phone is in reach
   bool quiet;           // Quiet Time is on
+  bool morning;         // before solar noon (so a sun below the horizon is on its way up)
   bool has_location;
 } FaceState;
 
@@ -48,7 +49,9 @@ typedef enum {
   ANIM_WAKE = 0,  // springs up from behind the horizon, rays pop out, eyes open and blink
   ANIM_HOP,       // two little hops and a blink, on the hour
   ANIM_SINK,      // slips down behind the horizon at sunset
+  ANIM_METEOR,    // a shooting star crosses the night sky
 } SunAnim;
+#define ANIM_METEOR_MS 900
 #define ANIM_WAKE_MS 1400
 #define ANIM_HOP_MS 1000
 #define ANIM_SINK_MS 700
