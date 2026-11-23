@@ -76,6 +76,7 @@ typedef struct {
   uint8_t date_format;  // DateFormat
   bool bt_vibe;         // buzz when the phone drops out of reach
   bool hourly;          // the cartoon sun hops on the hour
+  uint8_t night_theme;  // 0 the same theme all day, else a Theme + 1 to wear while the sun is down
 } Settings;
 
 typedef enum {

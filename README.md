@@ -42,6 +42,8 @@ Earlier looks, before the cartoon sun (still available as the *Solar glow* and *
 - **A glow that changes shape.** While the sun is under the horizon the glow is a low bell curve lying along
   the horizon, red on the ground and blue above. As the sun comes up the swell draws in and stands up, until it
   is a round halo about the sun at height, kept clear of the time and weather.
+- **A theme for the night.** Optionally a different theme from sunset to sunrise, such as white by day and
+  black at night.
 - **Five themes.** *Solar glow, cartoon sun* (the default), *Cartoon sun on white* (with a strip down the right
   edge in the colour of the time of day; the most readable with the backlight off), *Cartoon sun on black*,
   *Solar glow* with a plain sun, and *Classic*, which draws the path in amber on black.

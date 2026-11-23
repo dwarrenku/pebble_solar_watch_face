@@ -8,7 +8,7 @@
 #include "solar.h"
 #include "cartoon.h"
 
-#define SETTINGS_VERSION 7   // 2: themes are Solar glow and Classic; 3: the moon; 4: glow style; 5: cartoon themes; 6: time and date formats; 7: alerts and the hourly hop
+#define SETTINGS_VERSION 8   // 2: themes are Solar glow and Classic; 3: the moon; 4: glow style; 5: cartoon themes; 6: time and date formats; 7: alerts and the hourly hop; 8: night theme
 #define LOCATION_VERSION 1
 #define WEATHER_VERSION 1
 #define SLOT_TEXT_VERSION 1
@@ -79,7 +79,7 @@ static void load_all(void) {
   if (saved > 1 && saved <= (int)sizeof(s_settings)) {
     Settings old = s_settings;
     persist_read_data(PERSIST_SETTINGS, &old, saved);
-    if (old.version == 6 || old.version == SETTINGS_VERSION) {
+    if (old.version == 6 || old.version == 7 || old.version == SETTINGS_VERSION) {
       s_settings = old;
       s_settings.version = SETTINGS_VERSION;
     }
@@ -101,13 +101,30 @@ static uint64_t now_ms(void) {
   return (uint64_t)s * 1000 + ms;
 }
 
+static bool night_now(double alt) {
+  return s_settings.night_theme > 0 && s_day.valid && s_location.valid && alt < -0.833;
+}
+
 static void canvas_update(Layer *layer, GContext *ctx) {
   const time_t now = time(NULL);
   struct tm local = *localtime(&now);
   day_model_update(&s_day, &s_location, &local, now);
 
+  // The face wears the night theme, if one is set, while the sun is down (but lets a sunset finish).
+  double alt_now = 0;
+  if (s_day.valid) {
+    SolarDay sd;
+    solar_at((double)now, &sd);
+    alt_now = solar_altitude(local.tm_hour * 60 + local.tm_min + local.tm_sec / 60.0, s_day.lat, s_day.lon,
+                             local.tm_gmtoff / 60, &sd);
+  }
+  static Settings shown;
+  shown = s_settings;
+  const bool sinking = s_anim_timer && s_anim_kind == ANIM_SINK;
+  if (night_now(alt_now) && !sinking) shown.theme = s_settings.night_theme - 1;
+
   FaceState st = {
-    .settings = &s_settings,
+    .settings = &shown,
     .weather = &s_weather,
     .slot_text = &s_slot_text,
     .day = &s_day,
@@ -246,6 +263,7 @@ static void inbox_received(DictionaryIterator *it, void *context) {
     for (int i = 0; i < (int)ARRAY_LENGTH(IDS); i++) if (strcmp(t->value->cstring, IDS[i]) == 0) s_settings.field = i; \
     settings = true; }
   PICK(TIME_STYLE, time_style, "large_bold", "large_light", "large_digital", "medium_bold", "medium_digital", "small", "xl")
+  PICK(NIGHT_THEME, night_theme, "same", "glow", "classic", "cartoon_light", "cartoon_dark", "glow_cartoon")
   PICK(TIME_FORMAT, time_format, "auto", "12", "24")
   PICK(DATE_FORMAT, date_format, "dow_day", "mon_day", "day_mon", "m_d", "d_m", "none")
   #undef PICK
@@ -299,9 +317,12 @@ static void connection_handler(bool connected) {
   redraw();
 }
 
+// Whether the day or night theme has the cartoon sun (a theme without one ignores the animation).
+static bool is_cartoon(uint8_t t) {
+  return t == THEME_CARTOON_LIGHT || t == THEME_CARTOON_DARK || t == THEME_GLOW_CARTOON;
+}
 static bool cartoon_theme(void) {
-  return s_settings.theme == THEME_CARTOON_LIGHT || s_settings.theme == THEME_CARTOON_DARK ||
-         s_settings.theme == THEME_GLOW_CARTOON;
+  return is_cartoon(s_settings.theme) || (s_settings.night_theme > 0 && is_cartoon(s_settings.night_theme - 1));
 }
 
 // The cartoon sun's wake-up: redraw every frame until it has run its course. Frames are timed

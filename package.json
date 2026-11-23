@@ -87,7 +87,8 @@
       "TIME_FORMAT",
       "DATE_FORMAT",
       "BT_VIBE",
-      "HOURLY"
+      "HOURLY",
+      "NIGHT_THEME"
     ],
     "resources": {
       "media": []

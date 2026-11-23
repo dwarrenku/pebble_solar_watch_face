@@ -50,6 +50,18 @@ module.exports = [
         description: 'The cartoon sun is drawn like the PebbleOS timeline sun: it peeks over the horizon with its eyes shut at sunrise, wakes up as it climbs, and sleeps under the horizon at night. On white, a strip down the right edge takes the colour of the time of day. Solar glow lights the sky around the sun; Classic draws the path in amber on black.',
       },
       {
+        type: 'select', messageKey: 'NIGHT_THEME', label: 'Theme at night', defaultValue: 'same',
+        options: [
+          { label: 'Same as the day', value: 'same' },
+          { label: 'Solar glow, cartoon sun', value: 'glow_cartoon' },
+          { label: 'Cartoon sun on white', value: 'cartoon_light' },
+          { label: 'Cartoon sun on black', value: 'cartoon_dark' },
+          { label: 'Solar glow', value: 'glow' },
+          { label: 'Classic', value: 'classic' },
+        ],
+        description: 'Worn from sunset to sunrise. For example, white by day and black at night.',
+      },
+      {
         type: 'select', messageKey: 'GLOW_STYLE', label: 'Glow style', defaultValue: 'soft',
         options: [
           { label: 'Soft', value: 'soft' },
@@ -91,9 +103,9 @@ module.exports = [
           { label: 'Extra large', value: 'xl' },
           { label: 'Large, bold', value: 'large_bold' },
           { label: 'Large, light', value: 'large_light' },
-          { label: 'Large, digital', value: 'large_digital' },
+          { label: 'Large, Leco', value: 'large_digital' },
           { label: 'Medium, bold', value: 'medium_bold' },
-          { label: 'Medium, digital', value: 'medium_digital' },
+          { label: 'Medium, Leco', value: 'medium_digital' },
           { label: 'Small', value: 'small' },
         ],
       },
